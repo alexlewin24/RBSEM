@@ -1,0 +1,5 @@
+./[ALGORITHM]_Reg [--method X]--nIter X [--M 20] --inFile path/to/[inFileName].txt --outFile [outFileName]
+
+EXAMPLES:
+
+./HESS_Reg --inFile ../Data/sem_data.txt --outFilePath ../Data/ --nChains 4 --deltaTempRatio 10 --method 1 --nIter  200
