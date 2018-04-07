@@ -46,7 +46,6 @@ namespace Utils{
 		return true;
 	}
 
-
 	bool readDataSEM(std::string fileName, arma::mat &data, arma::ivec &blockIndexes, arma::ivec &variableType,
 		arma::uvec &missingDataIndexes, arma::uvec &nOutcomes, unsigned int &nPredictors, unsigned int &nObservations)
 	{
