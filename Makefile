@@ -3,7 +3,7 @@ CFLAGS=-c -Wall -std=c++11 -fopenmp #-O3 #commenting out -OX optimisation becaus
 LDFLAGS= -larmadillo -lpthread -llapack -lopenblas -fopenmp
 # LDFLAGS= -L/usr/lib/x86_64-linux-gnu/ -fopenmp -larmadillo -lnvblas -llapack -ltrng4
 
-SOURCES_HESS=global.cpp utils.cpp distr.cpp HESS.cpp imputation.cpp test_HESS.cpp
+SOURCES_HESS=global.cpp utils.cpp distr.cpp HESS.cpp imputation.cpp run_HESS.cpp test.cpp
 OBJECTS_HESS=$(SOURCES_HESS:.cpp=.o)
 
 all: $(SOURCES_HESS) HESS
