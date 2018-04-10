@@ -4,10 +4,14 @@
 #' @title rHESS_SEM
 #' @description
 #' Run a simple SEM Bayesian sampler
+#' IMPORTANT NOTE: outFilePath must exists, otherwise no output is going to be written.
+#' You can make sure of its existence by using base::dir.create(outFilePath) from R
 #' @name rHESS_SEM
-#' @param TODO
+#' @param inFile path to data file
+#' @param outFilePath path to where the output is to be written
+#' @param nIter number of iterations
 #' @examples
-#' rHESS_SEM("Data/sem_data.txt","Data/",..)
+#' rHESS_SEM(inFile="Data/sem_data.txt",outFilePath="Data/",nIter=200)
 #' 
 #' @export
 rHESS_SEM <- function(inFile, outFilePath, nIter = 10L, nChains = 1L, seed = 0L, method = 0L) {

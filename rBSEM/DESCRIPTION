@@ -9,6 +9,6 @@ Description: More details about what the package does. See
        <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file>
        for details on how to write this part.
 License: GPL (>= 2)
-LinkingTo: Rcpp, RcppArmadillo
-Imports: Rcpp, RcppArmadillo, BH
+LinkingTo: Rcpp, RcppArmadillo, BH
+Imports: Rcpp
 RoxygenNote: 6.0.1

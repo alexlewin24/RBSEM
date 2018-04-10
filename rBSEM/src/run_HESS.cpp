@@ -1,10 +1,10 @@
 #include "run_HESS.h"
+// #include <boost/filesystem.hpp>  // can't use it as it doesn't work in R
 
 int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, unsigned int nChains, long long unsigned int seed, int method)
 {
 
 	omp_init_lock(&RNGlock);  // init RNG lock for the parallel part
-
 
 	// ###########################################################
 	// ###########################################################
@@ -258,7 +258,15 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// ###########################################################
 	// ###########################################################
 
-	// Open UP files
+	// //check if provided out dir exists and create it otherwise
+	// boost::filesystem::path path(outFilePath);
+	// if ( !boost::filesystem::exists(path) || !boost::filesystem::is_directory(path) )
+	// {
+	// 	std::cout << path << " does not exist, creating...\n";
+	// 	boost::filesystem::create_directory(path);
+	// }
+
+	// Open up out files
 
 	// Re-define inFile so that I can use it in the output
 	std::size_t slash = inFile.find("/");  // remove the path from inFile
@@ -325,7 +333,8 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 			for( unsigned int k=0; k<nBlocks; ++k)
 				accCount(k) = accCount_tmp(k,0)/nUpdates;
 
-			std::cout << " Running iteration " << iteration+1 << " ... loc.acc.rate ~ " << accCount.t()/(double)iteration << std::endl;
+			std::cout << " Running iteration " << iteration+1 << " ... loc.acc.rate ~ " << accCount.t()/(double)iteration /*<< std::endl*/ ; 
+			// no need for extra endl as accCount.t() finishes with '\n'
 
 			// TODO FIGURE OUT HOW TO REPORT THESE
 			// if( nChains > 1 )
