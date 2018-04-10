@@ -19,6 +19,6 @@
 extern omp_lock_t RNGlock; //defined in global.h
 extern std::vector<std::mt19937_64> rng;
 
-int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, unsigned int nChains, long long unsigned int seed = 0, int method=1);
+int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, unsigned int nChains, long long unsigned int seed, int method);
 
 #endif

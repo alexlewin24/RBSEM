@@ -52,7 +52,7 @@ namespace Utils{
 
 		bool status = data.load(fileName,arma::raw_ascii);
 		arma::uvec jnk;
-		arma::ivec ijnk;
+		arma::ivec uniqueBlockIndexes;
 		
 		if(!status){ 
 			std::cout<< "Somethign went wrong while reading "<<fileName<<std::endl;
@@ -62,13 +62,16 @@ namespace Utils{
 			// the first row is a row of blockIndexes
 			blockIndexes = arma::conv_to<arma::ivec>::from( data.row(0)/*.t()*/ );
 			data.shed_row(0);
+
 			
 			// checks on the blockIndexes
 			// index 0 stands for the Xs, predictors
 			// index 1+ are the upper-level outcomes
 			// so we always need at least some zeros and some ones
-			ijnk = arma::unique(blockIndexes);
-			if( arma::max( blockIndexes ) < 1 || jnk.n_elem < 2 ) // more indepth check would be length of positive indexes..
+			uniqueBlockIndexes = arma::unique(blockIndexes);
+			
+			
+			if( arma::max( blockIndexes ) < 1 || uniqueBlockIndexes.n_elem < 2 ) // more indepth check would be length of positive indexes..
 			{
 				std::cout<< "You need to define at least two blocks -- Xs (block 0) and Ys (block 1)"<<std::endl;
 				return false;
@@ -88,13 +91,15 @@ namespace Utils{
 			variableType = arma::conv_to<arma::ivec>::from( data.row(0)/*.t()*/ );
 			data.shed_row(0);
 			
-
 			// miscellanea variables
-			for( int i=0, n=arma::max(blockIndexes) ; i<n ; ++i )	// this assumes every index between -1 and maxBlock is given (TODO)
+			nOutcomes = arma::uvec(uniqueBlockIndexes.n_elem); // init this
+
+			for( auto i : uniqueBlockIndexes )
 			{
 				jnk = arma::find( blockIndexes == i );   // meh, hate this temporary but is needed
 				nOutcomes(i) = jnk.n_elem;
 			}
+
 			// first index is the number of predictors
 			nPredictors = nOutcomes(0);
 			nOutcomes.shed_row(0);
@@ -111,7 +116,6 @@ namespace Utils{
 			{
 				missingDataIndexes.set_size(0);
 			}
-			
 		}
 
 		return true;

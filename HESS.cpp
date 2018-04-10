@@ -262,7 +262,7 @@ namespace Model
 
 	}
 
-		void MC3_SUR_MCMC_step(const arma::mat&Y, const arma::mat &X, arma::mat& omega_curr, arma::umat& gamma_curr, double& logPrior_curr, double &logLik_curr, 
+	void MC3_SUR_MCMC_step(const arma::mat&Y, const arma::mat &X, arma::mat& omega_curr, arma::umat& gamma_curr, double& logPrior_curr, double &logLik_curr, 
 					const double a_r_0, const double b_r_0, const arma::mat& W_0, 
 					const arma::vec& a_0, const arma::vec& b_0, double& accCount, unsigned int nUpdates, double temp)
 	{
@@ -864,5 +864,36 @@ namespace Model
 
 	} // end CrossOver
 
+
+	void SEM_MCMC_step(const arma::mat& data, std::vector<arma::uvec> blockIdx,
+					std::vector<arma::cube>& omega_state, std::vector<arma::ucube>& gamma_state, 
+					std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state,
+					const double a_r_0, const double b_r_0, const std::vector<arma::mat>& W_0, 
+					const arma::vec& a_0, const arma::vec& b_0,
+					arma::mat& accCount, unsigned int nUpdates, const arma::vec& temp, int method)
+	{
+		// This function will take care of all the local AND global moves for all the chains
+
+		// for now only local moves are performed,TODO
+
+		// switch(method){
+					
+		// 	case 0:
+		// 			#pragma omp parallel for num_threads(nThreads)
+		// 			for(unsigned int m=0; m<nChains ; ++m)
+		// 			{
+		// 					Model::MC3_SUR_MCMC_step(Y,X, omega_state.slice(m),gamma_state.slice(m),logPrior_state(m),logLik_state(m),
+		// 									a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp(m), nUpdates, temperature(m)); // in ESS accCount could be a vec, one for each chain
+		// 			}// end parallel updates
+		// 			break;
+		
+		// }
+
+
+		// for now do absolutely nothing
+		return;
+
+
+	}
 
 } // end namespace

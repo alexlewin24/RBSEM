@@ -13,7 +13,7 @@ int main(int argc, char *  argv[])
 	// std::string omegaInitPath = "";
 	// std::string gammaInitPath = "";
 
-	unsigned int method = 1; // Defaul is our novel "bandit" method
+	unsigned int method = 0; // TODO Defaul should be our novel "bandit" method
 
 	/*
 	0: MC^3 -- BASE algorithm, simple randow walker with add-delete and swap move
@@ -31,7 +31,7 @@ int main(int argc, char *  argv[])
 			if(method > 1 || method < 0 )
 			{
 				std::cout << "Invalid method argument ("<<method<<"), see README.md\nDefaulting to bandit sampler\n"<<std::flush;
-				method = 1;
+				method = 0;
 			}
 			if (na+1==argc) break;
 			++na;

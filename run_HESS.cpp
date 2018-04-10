@@ -1,15 +1,22 @@
 #include "run_HESS.h"
 
-int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, unsigned int nChains, long long unsigned int seed = 0, int method=1)
+int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, unsigned int nChains, long long unsigned int seed, int method)
 {
 
-	omp_init_lock(&RNGlock);  // RNG lock for the parallel part
+	omp_init_lock(&RNGlock);  // init RNG lock for the parallel part
+
+
+	// ###########################################################
+	// ###########################################################
+	// ## Read Arguments and Data
+	// ###########################################################
+	// ###########################################################
 
 	// ############# Read the data
 	unsigned int n,p;
 	arma::uvec s,NAIdx;
 	arma::ivec blockLabel,varType;
-	arma::mat data;
+	arma::mat data;   // here are ALL the data
 
 	if( Utils::readDataSEM(inFile, data, blockLabel, varType, NAIdx,
 		s, p, n) ){
@@ -21,6 +28,10 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 	unsigned int nBlocks = s.n_elem;
 
+	// DEBUG
+	// std::cout << nBlocks <<std::endl;
+	// int temporary2; std::cin >> temporary2;
+
 	// Add to X the intercept
 	arma::uword tmpUWord = arma::as_scalar(arma::find(blockLabel == 0,1,"first"));
 	data.insert_cols( tmpUWord , arma::ones<arma::vec>(n) );
@@ -30,11 +41,11 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	std::vector<arma::uvec> blockIdx(nBlocks+1);
 	for( unsigned int k = 0; k<(nBlocks+1); ++k)
 	{
-		blockIdx[k] = arma::find(blockLabel == 0);
+		blockIdx[k] = arma::find(blockLabel == k);
 	}
 
 	// XtX covariates only
-	arma::mat XtX = data.cols(blockIdx[0]).t() * data.cols(blockIdx[0]); // this is needed for crossover for example
+	arma::mat XtX = data.cols(blockIdx[0]).t() * data.cols(blockIdx[0]); // this is needed for crossover for example -- but I'd need to get all of them, not only blockIdx==0 TODO
 	arma::mat covariatesCorrelation = arma::inv( arma::diagmat( arma::sqrt(XtX.diag()) ) ) * XtX * arma::inv( arma::diagmat( arma::sqrt(XtX.diag()) ) );
 
 
@@ -48,14 +59,15 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	rng.reserve(nThreads);  // reserve the correct space for the vector of rng engines
 	std::seed_seq seedSeq;	// and declare the seedSequence
 	std::vector<unsigned int> seedInit(8);
-	long long int seed = r();
+	long long unsigned int seed_init; // = r();  // we could make it random
 
 	// seed all the engines
 	for(unsigned int i=0; i<nThreads; ++i)
 	{
 		// seedInit = {r(), r(), r(), r(), r(), r(), r(), r()};
 		// seedSeq.generate(seedInit.begin(), seedInit.end()); // init with a sequence of 8 TRUE random values
-		rng[i].seed(seed + i*(1000*(p*s*3+s*s)*nIter)); // 1000 rng per (p*s*3+s*s) variables each loop .. is this...ok? is random better?
+		seed_init = seed; // + static_cast<long long unsigned int>(i*(1000*(p*arma::accu(s)*3+s*s)*nIter));
+		rng[i] = std::mt19937_64( seed_init ); // 1000 rng per (p*s*3+s*s) variables each loop .. is this...ok? is random better?
 		// rng[i].seed(r());
 	}
 
@@ -94,6 +106,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 			tmpSize += arma::sum( s(arma::span(0,k)) );
 
 		W_0[k] = arma::eye( tmpSize, tmpSize ) * sigma2_beta_0;   // there's really no point in passing these matrices instead of the single coeff, but still...legacy code (TODO)
+		// notice moreover that this assumes that each block is regressed on ALL the previous ones
 	}
 
 
@@ -109,12 +122,12 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 	// ## Defines proposal parameters and temporary variables for the MCMC
 	arma::vec accCount = arma::zeros<arma::vec>(nBlocks); // one for each block
-	arma::vec accCount_tmp = arma::zeros<arma::vec>(nChains-1); // this is instead just one for each extra chain
+	arma::mat accCount_tmp = arma::zeros<arma::mat>(nBlocks,nChains); // this is instead one for each block and each chain
 
 	// ## Initialise chain traces and states
 
-	arma::mat omega_init;
-	arma::umat gamma_init;
+	std::vector<arma::mat> omega_init(nBlocks);
+	std::vector<arma::umat> gamma_init(nBlocks);
 
 	std::vector<arma::mat> omega_curr(nBlocks);				//current state of the main chain
 	std::vector<arma::umat> gamma_curr(nBlocks);
@@ -133,8 +146,9 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 		tmpSize = W_0[k].n_cols -1 ;  // no intercept
 
-		omega_init = arma::ones<arma::mat>(tmpSize,s(k)) / static_cast<double>(tmpSize);
-		gamma_init = arma::zeros<arma::umat>(tmpSize,s(k));
+		// different for each block?
+		omega_init[k] = arma::ones<arma::mat>(tmpSize,s(k)) / static_cast<double>(tmpSize);
+		gamma_init[k] = arma::zeros<arma::umat>(tmpSize,s(k));
 
 		// TODO, these could be read from file, but how? for each block?	
 		// if( omegaInitPath == "" )
@@ -147,32 +161,33 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 		omega_state[k] = arma::cube(tmpSize,s(k),nChains); 	
 		gamma_state[k] = arma::ucube(tmpSize,s(k),nChains);	
+
+		omega_state[k].slice(0) = omega_init[k];
+		gamma_state[k].slice(0) = gamma_init[k];
+
+
+
 		logPrior_state[k] = arma::vec(nChains);
 		logLik_state[k] = arma::vec(nChains);
 
-		logPrior_state[k](0) = Model::logSURPrior(omega_init, gamma_init, a_0, b_0);
+
+		logPrior_state[k](0) = Model::logSURPrior(omega_init[k], gamma_init[k], a_0, b_0);
 
 		tmpPredictorIdx = blockIdx[0];
 		for( unsigned int l=0; l<k; ++l)
 			tmpPredictorIdx.insert_rows(tmpPredictorIdx.n_elem, blockIdx[l+1]);
 
-		logLik_state[k](0) = Model::logSURLikelihood(data.cols(blockIdx[k+1]), data.cols(tmpPredictorIdx), gamma_init, a_r_0, b_r_0, W_0, 1.);
+		logLik_state[k](0) = Model::logSURLikelihood(data.cols(blockIdx[k+1]), data.cols(tmpPredictorIdx), gamma_init[k], a_r_0, b_r_0, W_0[k], 1.);
 
-
+		for(unsigned int m=1; m<nChains ; ++m)
+		{
+			omega_state[k].slice(m) = omega_init[k];
+			gamma_state[k].slice(m) = gamma_init[k];
+			logPrior_state[k](m) = logPrior_state[k](0);
+			logLik_state[k](m) = logLik_state[k](0);
+		}
+	
 	}
-
-	// HERE
-
-	for(unsigned int m=0; m<nChains ; ++m)
-	{
-		omega_state.slice(m) = mcmc_omega.slice(0);
-		gamma_state.slice(m) = mcmc_gamma.slice(0);
-		logPrior_state(m) = mcmc_logPrior(0);
-		logLik_state(m) = mcmc_logLik(0);
-	}
-
-	// std::cout << std::endl<< std::endl<< Model::logSURLikelihood(Y, X, gamma_init, a_r_0, b_r_0, W_0, 1.)<< std::endl;
-
 
 	// # Define temperture ladder
 	double maxTemperature = arma::min(a_0) - 2.; // due to the tempered gibbs moves
@@ -184,11 +199,14 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	for(unsigned int m=1; m<nChains; ++m)
 		temperature(m) = std::min( maxTemperature, temperature(m-1)*temperatureRatio );
 
-	for(unsigned int m=0; m<nChains ; ++m)
+	for( unsigned int k=0; k<nBlocks; ++k)
 	{
-		logLik_state(m) = mcmc_logLik(0)/temperature(m);
+		for(unsigned int m=1; m<nChains ; ++m)
+		{
+			logLik_state[k](m) = logLik_state[k](0)/temperature(m);
+		}
 	}
-
+	
 	unsigned int nGlobalUpdates = floor( nChains/2 );
 
 	unsigned int countGlobalUpdates = 0;    // count the global updates that happen on the first chain
@@ -207,34 +225,79 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	unsigned int nUpdates = p/10; //arbitrary nunmber, should I use something different?
 
 	// BANDIT ONLY SECTION
-	arma::cube alpha_z;	arma::cube beta_z;	arma::cube zeta; std::vector<arma::vec> mismatch;
-	std::vector<arma::vec> normalised_mismatch; std::vector<arma::vec> normalised_mismatch_backwards;
+	// arma::cube alpha_z;	arma::cube beta_z;	arma::cube zeta; std::vector<arma::vec> mismatch;
+	// std::vector<arma::vec> normalised_mismatch; std::vector<arma::vec> normalised_mismatch_backwards;
 
-	if( method == 1)
-	{
-		nUpdates = 4; // for Bandit this must be SMALL (as it scales with nUpdates! and has a different meaning anyway)
+	// if( method == 1)
+	// {
+	// 	nUpdates = 4; // for Bandit this must be SMALL (as it scales with nUpdates! and has a different meaning anyway)
 
-		// Starting vaues for the Bandit tuning parameters
-		// stating proposals are beta( 0.5 , 0.5 ) so that they're centered in 0.5 with spikes at the extremes
-		// ALL OF THESE NEED TO HAVE A COPY FOR EACH CHAIN!!
-		alpha_z = arma::cube(p,s,nChains); alpha_z.fill(0.5);
-		beta_z = arma::cube (p,s,nChains); beta_z.fill(0.5);
+	// 	// Starting vaues for the Bandit tuning parameters
+	// 	// stating proposals are beta( 0.5 , 0.5 ) so that they're centered in 0.5 with spikes at the extremes
+	// 	// ALL OF THESE NEED TO HAVE A COPY FOR EACH CHAIN AND BLOCK!! HUGE :/
+	// 	alpha_z = arma::cube(p,s,nChains); alpha_z.fill(0.5);
+	// 	beta_z = arma::cube (p,s,nChains); beta_z.fill(0.5);
 
-		// these do not, as they will be overwritten anyway, but a copy helps in avoiding parallel access and/or OMP overhead in creating privates
-		zeta = arma::cube(p,s,nChains);
-		mismatch = std::vector<arma::vec>(nChains);
-		normalised_mismatch = std::vector<arma::vec>(nChains);
-		normalised_mismatch_backwards = std::vector<arma::vec>(nChains);
-		for(unsigned int i = 0; i<nChains; ++i)
-		{
-			mismatch[i] = arma::vec(p*s);
-			normalised_mismatch[i] = arma::vec(p*s);
-			normalised_mismatch_backwards[i] = arma::vec(p*s);
-		}
-		// I still wonder why .slice() is an instance of arma::mat and return a reference to it
-		// while .col() is a subview and has hald the method associated with a Col object ...
-	}
+	// 	// these do not, as they will be overwritten anyway, but a copy helps in avoiding parallel access and/or OMP overhead in creating privates
+	// 	zeta = arma::cube(p,s,nChains);
+	// 	mismatch = std::vector<arma::vec>(nChains);
+	// 	normalised_mismatch = std::vector<arma::vec>(nChains);
+	// 	normalised_mismatch_backwards = std::vector<arma::vec>(nChains);
+	// 	for(unsigned int i = 0; i<nChains; ++i)
+	// 	{
+	// 		mismatch[i] = arma::vec(p*s);
+	// 		normalised_mismatch[i] = arma::vec(p*s);
+	// 		normalised_mismatch_backwards[i] = arma::vec(p*s);
+	// 	}
+	// 	// I still wonder why .slice() is an instance of arma::mat and return a reference to it
+	// 	// while .col() is a subview and has hald the method associated with a Col object ...
+	// }
 	// END Bandit only section
+
+	// ###########################################################
+	// ###########################################################
+	// ## Init Files
+	// ###########################################################
+	// ###########################################################
+
+	// Open UP files
+
+	// Re-define inFile so that I can use it in the output
+	std::size_t slash = inFile.find("/");  // remove the path from inFile
+	while( slash != std::string::npos )
+	{
+		inFile.erase(inFile.begin(),inFile.begin()+slash+1);
+		slash = inFile.find("/");
+		// std::cout << inFile << std::endl;
+	}
+	inFile.erase(inFile.end()-4,inFile.end());  // remomve the .txt from inFile
+
+
+	// open new files in append mode
+	// std::ofstream omegaOutFile; omegaOutFile.open( outFilePath+inFile+"_SSUR_omega_out.txt" , std::ios_base::trunc); omegaOutFile.close();
+	std::ofstream gammaOutFile; 
+
+	// zero out files
+	for( unsigned int k=0; k<nBlocks; ++k)
+	{
+		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+(char)k+"_out.txt" , std::ios_base::trunc); 
+		gammaOutFile.close();
+	}
+
+	// Variable to hold the output to file ( current state )
+	std::vector<arma::umat> gamma_out;
+	for( unsigned int k=0; k<nBlocks; ++k)
+		gamma_out[k] = gamma_state[k].slice(0); // out var for the gammas
+
+	// could use save but I need to sum and then normalise so I'd need to store another matrix for each...
+
+	// first output
+	for( unsigned int k=0; k<nBlocks; ++k)
+	{
+		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+(char)k+"_out.txt" , std::ios_base::trunc);
+		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k])) << std::flush;
+		gammaOutFile.close();
+	}
 
 	// ###########################################################
 	// ###########################################################
@@ -242,41 +305,129 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// ###########################################################
 	// ###########################################################
 
+
 	std::cout << "Starting "<< nChains <<" (parallel) chain(s) for " << nIter << " iterations:" << std::endl;
 
-	for(unsigned int i=1; i < nIter ; ++i)
+	for(unsigned int iteration=1; iteration < nIter ; ++iteration)
 	{
 
-		switch(method){
-
-			case 0:
-					#pragma omp parallel for num_threads(nThreads)
-					for(unsigned int m=0; m<nChains ; ++m)
-					{
-							Model::MC3_SUR_MCMC_step(Y,X, omega_state.slice(m),gamma_state.slice(m),logPrior_state(m),logLik_state(m),
-											a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp(m), nUpdates, temperature(m)); // in ESS accCount could be a vec, one for each chain
-					}// end parallel updates
-					break;
-
-			case 1:
-					#pragma omp parallel for num_threads(nThreads)
-					for(unsigned int m=0; m<nChains ; ++m)
-					{
-							Model::bandit_SUR_MCMC_step(Y,X, omega_state.slice(m),gamma_state.slice(m),logPrior_state(m),logLik_state(m),
-											a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp(m), nUpdates, temperature(m) ,
-											zeta.slice(m), alpha_z.slice(m), beta_z.slice(m),
-											mismatch[m], normalised_mismatch[m], normalised_mismatch_backwards[m]); // in ESS accCount could be a vec, one for each chain
-					}// end parallel updates
-					break;
-
-					// there is no default since by default method = 2 and hence this last one is the default anyway
-		}
-
+		Model::SEM_MCMC_step(data,blockIdx, 
+					omega_state, gamma_state, logPrior_state, logLik_state,
+					a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp, nUpdates, temperature, 0); // method forced to zero now, TODO
 
 		// UPDATE OUTPUT STATE
-		mcmc_omega.slice(i) = omega_state.slice(0); mcmc_gamma.slice(i) = gamma_state.slice(0); 
-		mcmc_logPrior(i) = logPrior_state(0); mcmc_logLik(i) = logLik_state(0);
+		for( unsigned int k=0; k<nBlocks; ++k)
+			gamma_out[k] += gamma_state[k].slice(0); // the result of the whole procedure is now my new mcmc point, so add that up
+		
+		// Print something on how the chain is going
+		if( (iteration+1) % 100 == 0 )
+		{
+			// Update Acc Rate only for each (block's) main chain
+			for( unsigned int k=0; k<nBlocks; ++k)
+				accCount(k) = accCount_tmp(k,0)/nUpdates;
 
+			std::cout << " Running iteration " << iteration+1 << " ... loc.acc.rate ~ " << accCount.t()/(double)iteration << std::endl;
+
+			// TODO FIGURE OUT HOW TO REPORT THESE
+			// if( nChains > 1 )
+			// 	std::cout << " global.acc.rate ~ " << accCountGlobalUpdates / (double)countGlobalUpdates;
+			// std::cout << /*"  ~~  " << temperature.t() << */ std::endl;
+		}
+
+		// Output to files every now and then
+		if( (iteration+1) % (1000) == 0 )
+		{
+			for( unsigned int k=0; k<nBlocks; ++k)
+			{
+				gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+(char)k+"_out.txt" , std::ios_base::trunc);
+				gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)iteration+1.0) << std::flush;
+				gammaOutFile.close();
+			}
+		}
+
+	} // end MCMC
+
+
+	std::cout << " MCMC ends. Final temperature ratio ~ " << temperatureRatio << "   --- Saving results and exiting" << std::endl;
+
+	// Output to files one last time
+	for( unsigned int k=0; k<nBlocks; ++k)
+	{
+		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+(char)k+"_out.txt" , std::ios_base::trunc);
+		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)nIter+1.0) << std::flush;
+		gammaOutFile.close();
+	}
+
+
+	// Exit
+	return 0;
+}
+
+
+/*
+		// ####################
+		// ## Global moves
+		if( nChains > 1 )
+		{
+			for(unsigned int k=0; k < nGlobalUpdates ; ++k)  // repeat global updates
+			{
+
+				// # Global move
+				// Select the type of exchange/crossOver to apply
+
+				globalType = Distributions::randIntUniform(0,6);   // (nChains-1)*(nChains-2)/2 is the number of possible chain combinations with nChains
+
+				switch(globalType){
+
+					case 0: break;
+
+					// -- Exchange
+					case 1: Model::exchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
+							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
+							break;
+
+					case 2: Model::nearExchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
+							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
+							break;
+
+					case 3: Model::allExchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
+							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
+							break;
+
+					// -- CrossOver
+					case 4: Model::adapCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
+								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature, 
+								pXO_0, pXO_1, pXO_2, p11, p12, p21, p22,
+								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
+							break;
+
+					case 5: Model::uniformCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
+								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature,
+								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
+							break;
+
+					case 6: Model::blockCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
+								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, covariatesCorrelation, temperature, 0.25,
+								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
+							break;
+				}
+
+
+			} // end "K" Global Moves
+
+			// Update the output vars
+			mcmc_omega.slice(i) = omega_state.slice(0);
+			mcmc_gamma.slice(i) = gamma_state.slice(0);
+			mcmc_logPrior(i) = logPrior_state(0);
+			mcmc_logLik(i) = logLik_state(0);
+
+			// ## Update temperature ladder
+			if ( i % 10 == 0 )
+			{
+				if( (accCountGlobalUpdates / (double)countGlobalUpdates) > 0.35 )
+				{
+					temperatureRatio = std::max( 2. , temperatureRatio-deltaTempRatio );
+				}else{
 		// ####################
 		// ## Global moves
 		if( nChains > 1 )
@@ -364,41 +515,28 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 
 		} //end Global move's section
+					temperatureRatio += deltaTempRatio;
+				}
 
-		// Print something on how the chain is going
-		if( (i+1) % 100 == 0 )
-		{
-			// Update Acc Rate only for main chain
-			accCount = accCount_tmp(0)/nUpdates;
+				temperatureRatio = std::min( temperatureRatio , pow( maxTemperature, 1./( (double)nChains - 1.) ) );
 
-			std::cout << " Running iteration " << i+1 << " ... loc.acc.rate ~ " << accCount/(double)i;
-			if( nChains > 1 )
-				std::cout << " global.acc.rate ~ " << accCountGlobalUpdates / (double)countGlobalUpdates;
-			std::cout << /*"  ~~  " << temperature.t() << */ std::endl;
-		}
+				// std::cout << "---------------------------------- \n"<< temperature << '\n'<< std::flush;
+				for(unsigned int m=1; m<nChains; ++m)
+				{
+					// untempered lik and prior
+					logLik_state(m) = logLik_state(m)*temperature(m);
+					logPrior_state(m) = logPrior_state(m)*temperature(m);
 
-	} // end MCMC
+					// std::cout << '\n'<< temperature(m-1) << " " << temperature(m-1)*temperatureRatio  << '\n' << '\n'<< std::flush;
+					temperature(m) = std::min( maxTemperature, temperature(m-1)*temperatureRatio );
 
+					// re-tempered lik and prior
+					logLik_state(m) = logLik_state(m)/temperature(m);
+					logPrior_state(m) = logPrior_state(m)/temperature(m);
 
-	std::cout << " MCMC ends. Final temperature ratio ~ " << temperatureRatio << "   --- Saving results and exiting" << std::endl;
-
-	// ### Collect results and save them
-
-	std::size_t slash = inFile.find("/");  // remove the path from inFile
-	while( slash != std::string::npos )
-	{
-		inFile.erase(inFile.begin(),inFile.begin()+slash+1);
-		slash = inFile.find("/");
-		// std::cout << inFile << std::endl;
-	}
-	inFile.erase(inFile.end()-4,inFile.end());  // remomve the .txt from inFile
-		// std::cout << inFile << std::endl;
-
-	mcmc_omega.save(outFilePath+inFile+"_HESS_omega_out.txt",arma::raw_ascii);
-	mcmc_gamma.save(outFilePath+inFile+"_HESS_gamma_out.txt",arma::raw_ascii);
-	mcmc_logPrior += mcmc_logLik; mcmc_logPrior.save(outFilePath+inFile+"_HESS_logP_out.txt",arma::raw_ascii);
+				}
+			}
 
 
-	// Exit
-	return 0;
-}
+		} //end Global move's section
+*/

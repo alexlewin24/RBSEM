@@ -1,3 +1,3 @@
 EXAMPLES:
 
-./HESS_Reg --inFile ../Data/sem_data.txt --outFilePath ../Data/ --nChains 1 --method 1 --seed 0 --nIter 200
+./HESS_Reg --inFile Data/sem_data.txt --outFilePath Data/ --nChains 1 --method 1 --seed 0 --nIter 200

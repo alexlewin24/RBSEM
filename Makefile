@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-c -Wall -std=c++11 -fopenmp #-O3 #commenting out -OX optimisation because of valgrind   (de-comment it once ready for production, 3fold decrease in runtime)
+CFLAGS=-c -Wall -std=c++14 -fopenmp #-O3 #commenting out -OX optimisation because of valgrind   (de-comment it once ready for production, 3fold decrease in runtime)
 LDFLAGS= -larmadillo -lpthread -llapack -lopenblas -fopenmp
 # LDFLAGS= -L/usr/lib/x86_64-linux-gnu/ -fopenmp -larmadillo -lnvblas -llapack -ltrng4
 
