@@ -94,5 +94,5 @@ int main(int argc, char *  argv[])
 	int status = run_HESS(inFile, outFilePath, nIter, nChains, seed, method);
 
 	// Exit
-	return 0;
+	return status;
 }
