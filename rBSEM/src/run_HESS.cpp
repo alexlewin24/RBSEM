@@ -28,14 +28,10 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 	unsigned int nBlocks = s.n_elem;
 
-	// DEBUG
-	// std::cout << nBlocks <<std::endl;
-	// int temporary2; std::cin >> temporary2;
-
 	// Add to X the intercept
 	arma::uword tmpUWord = arma::as_scalar(arma::find(blockLabel == 0,1,"first"));
 	data.insert_cols( tmpUWord , arma::ones<arma::vec>(n) );
-	blockLabel.insert_cols( tmpUWord, arma::zeros<arma::ivec>(1) ); // add its blockLabel
+	blockLabel.insert_rows( tmpUWord, arma::zeros<arma::ivec>(1) ); // add its blockLabel
 
 	// now find the indexes for each block in a more armadillo-interpretable way
 	std::vector<arma::uvec> blockIdx(nBlocks+1);
@@ -99,6 +95,14 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// arma::mat mean_beta_0(p+1, s); mean_beta_0.fill(m_beta_0); // this is assumed zero everywhere. STOP
 	std::vector<arma::mat> W_0(nBlocks);
 	unsigned int tmpSize = 0;
+
+	// # gamma  (p+1xs elements, but the first row doesn't move, always 1, cause are the intercepts)
+	// this is taken into account further on in the algorithm, so no need to take into account now
+	// REMEMBER TO CHAIN X AND Y_k's (k'<k) with X FIRST for each k so that intercept is always first
+	// gamma_jk (j=1,..p  i.e. not 0 - k=0,s-1) comes from a Bernoulli distribution of parameters omega_j, who are all coming from a Beta(a_0,b_0)
+	std::vector<arma::vec> a_0(nBlocks);
+	std::vector<arma::vec> b_0(nBlocks);
+
 	for( unsigned int k=0; k<nBlocks; ++k)
 	{
 		tmpSize = p+1;
@@ -107,17 +111,14 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 		W_0[k] = arma::eye( tmpSize, tmpSize ) * sigma2_beta_0;   // there's really no point in passing these matrices instead of the single coeff, but still...legacy code (TODO)
 		// notice moreover that this assumes that each block is regressed on ALL the previous ones
+
+		a_0[k] = arma::vec(tmpSize); a_0[k].fill( 5. ); 		// the average of a beta is E[p]=a/(a+b), this way E[p] <= 1.% FOR EVERY OUTCOME
+		b_0[k] = arma::vec(tmpSize); b_0[k].fill( std::max( (double)p , 500.) - 5. );
+		// again this could be different for every block, depending on the actual number of coeffs, but... (TODO)
+
 	}
 
-
-	// # gamma  (p+1xs elements, but the first row doesn't move, always 1, cause are the intercepts)
-	// this is taken into account further on in the algorithm, so no need to take into account now
-	// REMEMBER TO CHAIN X AND Y_k's (k'<k) with X FIRST for each k so that intercept is always first
-	// gamma_jk (j=1,..p  i.e. not 0 - k=0,s-1) comes from a Bernoulli distribution of parameters omega_j, who are all coming from a Beta(a_0,b_0)
-	arma::vec a_0(p); a_0.fill( 5. ); 		// the average of a beta is E[p]=a/(a+b), this way E[p] <= 1.% FOR EVERY OUTCOME
-	arma::vec b_0(p); b_0.fill( std::max( (double)p , 500.) - 5. );
-	// again this could be different for every block, depending on the actual number of coeffs, but... (TODO)
-
+	
 	// ### Initialise and Start the chain
 
 	// ## Defines proposal parameters and temporary variables for the MCMC
@@ -134,10 +135,10 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	arma::vec logLik_curr(nBlocks);
 	arma::vec logPrior_curr(nBlocks);
 
-	std::vector<arma::cube> omega_state;				// Current state of ALL the chains, we need them for the global moves
-	std::vector<arma::ucube> gamma_state;
-	std::vector<arma::vec> logPrior_state;
-	std::vector<arma::vec> logLik_state;
+	std::vector<arma::cube> omega_state(nBlocks);				// Current state of ALL the chains, we need them for the global moves
+	std::vector<arma::ucube> gamma_state(nBlocks);
+	std::vector<arma::vec> logPrior_state(nBlocks);
+	std::vector<arma::vec> logLik_state(nBlocks);
 
 	arma::uvec tmpPredictorIdx;
 
@@ -158,20 +159,18 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 		// 		for(unsigned int l=0; l<s(k); ++l)
 		// 			gamma_init(j,l) = Distributions::randBernoulli(omega_init(j,l));
 	
-
+		// init
 		omega_state[k] = arma::cube(tmpSize,s(k),nChains); 	
 		gamma_state[k] = arma::ucube(tmpSize,s(k),nChains);	
-
-		omega_state[k].slice(0) = omega_init[k];
-		gamma_state[k].slice(0) = gamma_init[k];
-
-
 
 		logPrior_state[k] = arma::vec(nChains);
 		logLik_state[k] = arma::vec(nChains);
 
+		// fill
+		omega_state[k].slice(0) = omega_init[k];
+		gamma_state[k].slice(0) = gamma_init[k];
 
-		logPrior_state[k](0) = Model::logSURPrior(omega_init[k], gamma_init[k], a_0, b_0);
+		logPrior_state[k](0) = Model::logSURPrior(omega_init[k], gamma_init[k], a_0[k], b_0[k]);
 
 		tmpPredictorIdx = blockIdx[0];
 		for( unsigned int l=0; l<k; ++l)
@@ -186,11 +185,10 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 			logPrior_state[k](m) = logPrior_state[k](0);
 			logLik_state[k](m) = logLik_state[k](0);
 		}
-	
 	}
 
 	// # Define temperture ladder
-	double maxTemperature = arma::min(a_0) - 2.; // due to the tempered gibbs moves
+	double maxTemperature = arma::min(a_0[0]) - 2.; // due to the tempered gibbs moves
 	double temperatureRatio = 2.; // std::max( 100., (double)n );
 
 	arma::vec temperature(nChains);
@@ -217,8 +215,8 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// All-exchange operator hyper pars
 
 	// Crossover operator hyper pars (see http://www3.stat.sinica.edu.tw/statistica/oldpdf/A10n21.pdf
-	double pXO_0 = 0.1, pXO_1 = 0.2 , pXO_2 = 0.2;
-	double p11 = pXO_0*pXO_0 + (1.-pXO_0)*(1.-pXO_0) ,p12 = 2.*pXO_0*(1.-pXO_0) ,p21= pXO_1*(1.-pXO_2) + pXO_2*(1.-pXO_1) ,p22 = pXO_1*pXO_2 + (1.-pXO_1)*(1.-pXO_2);
+	// double pXO_0 = 0.1, pXO_1 = 0.2 , pXO_2 = 0.2;
+	// double p11 = pXO_0*pXO_0 + (1.-pXO_0)*(1.-pXO_0) ,p12 = 2.*pXO_0*(1.-pXO_0) ,p21= pXO_1*(1.-pXO_2) + pXO_2*(1.-pXO_1) ,p22 = pXO_1*pXO_2 + (1.-pXO_1)*(1.-pXO_2);
 
 
 	// NON-BANDIT related things
@@ -280,12 +278,12 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// zero out files
 	for( unsigned int k=0; k<nBlocks; ++k)
 	{
-		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+(char)k+"_out.txt" , std::ios_base::trunc); 
+		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k)+"_out.txt" , std::ios_base::trunc); 
 		gammaOutFile.close();
 	}
 
 	// Variable to hold the output to file ( current state )
-	std::vector<arma::umat> gamma_out;
+	std::vector<arma::umat> gamma_out(nBlocks);
 	for( unsigned int k=0; k<nBlocks; ++k)
 		gamma_out[k] = gamma_state[k].slice(0); // out var for the gammas
 
@@ -294,10 +292,11 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// first output
 	for( unsigned int k=0; k<nBlocks; ++k)
 	{
-		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+(char)k+"_out.txt" , std::ios_base::trunc);
+		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k)+"_out.txt" , std::ios_base::trunc);
 		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k])) << std::flush;
 		gammaOutFile.close();
 	}
+
 
 	// ###########################################################
 	// ###########################################################
@@ -339,7 +338,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 		{
 			for( unsigned int k=0; k<nBlocks; ++k)
 			{
-				gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+(char)k+"_out.txt" , std::ios_base::trunc);
+				gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k)+"_out.txt" , std::ios_base::trunc);
 				gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)iteration+1.0) << std::flush;
 				gammaOutFile.close();
 			}
@@ -353,7 +352,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// Output to files one last time
 	for( unsigned int k=0; k<nBlocks; ++k)
 	{
-		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+(char)k+"_out.txt" , std::ios_base::trunc);
+		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k)+"_out.txt" , std::ios_base::trunc);
 		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)nIter+1.0) << std::flush;
 		gammaOutFile.close();
 	}

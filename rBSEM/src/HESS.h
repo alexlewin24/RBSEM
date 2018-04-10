@@ -36,7 +36,7 @@ namespace Model{
 					std::vector<arma::cube>& omega_state, std::vector<arma::ucube>& gamma_state, 
 					std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state,
 					const double a_r_0, const double b_r_0, const std::vector<arma::mat>& W_0, 
-					const arma::vec& a_0, const arma::vec& b_0,
+					const std::vector<arma::vec>& a_0, const std::vector<arma::vec>& b_0,
 					arma::mat& accCount, unsigned int nUpdates, const arma::vec& temp, int method);
 	
 

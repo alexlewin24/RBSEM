@@ -1,3 +1,21 @@
+C++  :
+
+First you 
+
+$ make
+
+or alternatively use 
+
+$ make HESS
+
 EXAMPLES:
 
 ./HESS_Reg --inFile Data/sem_data.txt --outFilePath Data/ --nChains 1 --method 1 --seed 0 --nIter 200
+
+
+
+R : 
+
+R CMD INSTALL rBSEM_version
+
+then use it within R
