@@ -8,10 +8,13 @@
 #include <boost/math/special_functions/erf.hpp> // can I do this?
 #include <random>
 
-//#ifndef M_PI
-//  #define M_PI 3.14159265358979323846
-//#endif
+#ifndef M_PI
+  #define M_PI 3.14159265358979323846
+#endif
 
+#ifndef M_SQRT1_2
+  #define M_SQRT1_2 0.7071068
+#endif
 
 namespace Distributions{
 
