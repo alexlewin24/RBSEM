@@ -6,6 +6,11 @@
 #include <boost/math/special_functions/erf.hpp> // can I do this?
 #include <random>
 
+#ifndef M_PI
+  #define M_PI 3.14159265358979323846
+#endif
+
+
 namespace Distributions{
 
 	double randExponential(const double lambda);
