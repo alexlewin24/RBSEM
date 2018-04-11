@@ -1,11 +1,10 @@
 #ifndef DISTR
 #define DISTR
 
-#include <armadillo>
-
 #define _USE_MATH_DEFINES
 #include <cmath>
 
+#include <armadillo>
 #include <boost/math/special_functions/erf.hpp> // can I do this?
 #include <random>
 
