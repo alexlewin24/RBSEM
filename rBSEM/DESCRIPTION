@@ -3,12 +3,15 @@ Type: Package
 Title: Bayesian Structural Equation Model Regression
 Version: 0.1.0
 Date: 2018-04-10
-Author: Marco Banterle, Alex Lewin, ...
-Maintainer: Marco Banterle <marco.banterle@gmail.com>
+Authors@R: person("Marco", "Banterle", email = "marco.banterle@gmail.com", role = c("aut", "cre"))
+Maintainer@R: person("Marco", "Banterle", email = "marco.banterle@gmail.com", role = c("aut", "cre"))
 Description: More details about what the package does. See
        <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file>
        for details on how to write this part.
 License: GPL (>= 2)
-LinkingTo: Rcpp, RcppArmadillo, BH
+Depends: R (>= 2.10)
+LinkingTo: Rcpp, RcppArmadillo (>= 0.8.400.0.0), BH
 Imports: Rcpp
+Suggests: testthat
+LazyData: true
 RoxygenNote: 6.0.1

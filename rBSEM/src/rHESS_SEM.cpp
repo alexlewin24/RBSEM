@@ -16,9 +16,13 @@
 //' @param nIter number of iterations
 //' @param nChains number of parallel chains to run
 //' @param seed pRNG seed
-//' @param method $gamma$ sampling method, where 0=$MC^3$ and 1=Thompson -sampling-inspired novel method
+//' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method
 //' @examples
-//' rHESS_SEM(inFile="Data/sem_data.txt",outFilePath="Data/",nIter=200)
+//' dir.create("tmp")
+//' sample_sem=data(sample_SEM)
+//' write.table(sample_sem,"tmp/sem_data.txt",row.names = FALSE,col.names = FALSE)
+//' rHESS_SEM(inFile="tmp/sem_data.txt",outFilePath="tmp/",nIter=200)
+//' unlink("tmp", recursive=TRUE)
 //' 
 //' @export
 // [[Rcpp::export]]
