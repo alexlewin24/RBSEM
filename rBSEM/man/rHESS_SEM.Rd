@@ -22,6 +22,8 @@ rHESS_SEM(inFile, outFilePath, nIter = 10L, nChains = 1L, seed = 0L,
 }
 \description{
 Run a simple SEM Bayesian sampler
+IMPORTANT NOTE: outFilePath must exists, otherwise no output is going to be written.
+You can make sure of its existence by using base::dir.create(outFilePath) from R
 }
 \examples{
 rHESS_SEM(inFile="Data/sem_data.txt",outFilePath="Data/",nIter=200)

@@ -17,7 +17,7 @@ use_rcpp()
 # each time you modify the source code do
 # R CMD build rBSEM
 #  in R > devtools::document("rBSEM/")
-# R CMD check --as-cran rBSEM_0.1.0.tar.gz   ## or devtools::check("rBSEM_XXX.tar.gz",cran = TRUE)
+# R CMD check --as-cran rBSEM_0.1.0.tar.gz   ## or devtools::check("rBSEM/",cran = TRUE)
 # then for both u and the users
 # Sys.setenv("PKG_CXXFLAGS"="-std=c++11")
 # in R > install.packages("rBSEM_1.0.tar.gz", repos = NULL, type="source")
