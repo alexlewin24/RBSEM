@@ -4,8 +4,6 @@
 #' @title rHESS_SEM
 #' @description
 #' Run a simple SEM Bayesian sampler
-#' IMPORTANT NOTE: outFilePath must exists, otherwise no output is going to be written.
-#' You can make sure of its existence by using base::dir.create(outFilePath) from R
 #' @name rHESS_SEM
 #' @param inFile path to data file
 #' @param outFilePath path to where the output is to be written

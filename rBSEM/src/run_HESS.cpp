@@ -52,7 +52,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 		nThreads = nChains;
 	omp_set_num_threads(nThreads);
 
-	rng.reserve(nThreads);  // reserve the correct space for the vector of rng engines
+	rng = std::vector<std::mt19937_64>(nThreads); //.reserve(nThreads);  // reserve the correct space for the vector of rng engines
 	std::seed_seq seedSeq;	// and declare the seedSequence
 	std::vector<unsigned int> seedInit(8);
 	long long unsigned int seed_init; // = r();  // we could make it random

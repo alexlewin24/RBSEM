@@ -19,7 +19,8 @@ use_rcpp()
 #  in R > devtools::document("rBSEM/")
 # R CMD check --as-cran rBSEM_0.1.0.tar.gz   ## or devtools::check("rBSEM_XXX.tar.gz",cran = TRUE)
 # then for both u and the users
-#  in R > install.packages("rBSEM_1.0.tar.gz", repos = NULL, type="source")
+# Sys.setenv("PKG_CXXFLAGS"="-std=c++11")
+# in R > install.packages("rBSEM_1.0.tar.gz", repos = NULL, type="source")
 #  in R > library('rBSEM')
 #  in R > rHESS_SEM(inFile="Data/sem_data.txt",outFilePath="Data/",nIter=20000)
 
