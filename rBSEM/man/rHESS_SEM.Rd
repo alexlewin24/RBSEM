@@ -13,6 +13,12 @@ rHESS_SEM(inFile, outFilePath, nIter = 10L, nChains = 1L, seed = 0L,
 \item{outFilePath}{path to where the output is to be written}
 
 \item{nIter}{number of iterations}
+
+\item{nChains}{number of parallel chains to run}
+
+\item{seed}{pRNG seed}
+
+\item{method}{$gamma$ sampling method, where 0=$MC^3$ and 1=Thompson -sampling-inspired novel method}
 }
 \description{
 Run a simple SEM Bayesian sampler

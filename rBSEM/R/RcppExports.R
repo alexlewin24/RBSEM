@@ -10,6 +10,9 @@
 #' @param inFile path to data file
 #' @param outFilePath path to where the output is to be written
 #' @param nIter number of iterations
+#' @param nChains number of parallel chains to run
+#' @param seed pRNG seed
+#' @param method $gamma$ sampling method, where 0=$MC^3$ and 1=Thompson -sampling-inspired novel method
 #' @examples
 #' rHESS_SEM(inFile="Data/sem_data.txt",outFilePath="Data/",nIter=200)
 #' 
