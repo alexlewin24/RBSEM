@@ -3,10 +3,10 @@
 
 #' @title rHESS_SEM
 #' @description
-#' Run a simple SEM Bayesian sampler
+#' Run a simple SEM Bayesian sampler -- internal function
 #' IMPORTANT NOTE: outFilePath must exists, otherwise no output is going to be written.
 #' You can make sure of its existence by using base::dir.create(outFilePath) from R
-#' @name rHESS_SEM
+#' @name rHESS_SEM_internal
 #' @param inFile path to data file
 #' @param outFilePath path to where the output is to be written
 #' @param nIter number of iterations
@@ -15,13 +15,12 @@
 #' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method
 #' @examples
 #' dir.create("tmp")
-#' sample_sem=data(sample_SEM)
+#' data(sample_SEM)
 #' write.table(sample_sem,"tmp/sem_data.txt",row.names = FALSE,col.names = FALSE)
-#' rHESS_SEM(inFile="tmp/sem_data.txt",outFilePath="tmp/",nIter=200)
+#' rHESS_SEM_internal(inFile="tmp/sem_data.txt",outFilePath="tmp/",nIter=200)
 #' unlink("tmp", recursive=TRUE)
 #' 
-#' @export
-rHESS_SEM <- function(inFile, outFilePath, nIter = 10L, nChains = 1L, seed = 0L, method = 0L) {
-    .Call('_rBSEM_rHESS_SEM', PACKAGE = 'rBSEM', inFile, outFilePath, nIter, nChains, seed, method)
+rHESS_SEM_internal <- function(inFile, outFilePath, nIter = 10L, nChains = 1L, seed = 0L, method = 0L) {
+    .Call('_rBSEM_rHESS_SEM_internal', PACKAGE = 'rBSEM', inFile, outFilePath, nIter, nChains, seed, method)
 }
 

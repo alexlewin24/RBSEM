@@ -6,9 +6,9 @@
 
 using namespace Rcpp;
 
-// rHESS_SEM
-int rHESS_SEM(std::string inFile, std::string outFilePath, unsigned int nIter, unsigned int nChains, long long unsigned int seed, unsigned int method);
-RcppExport SEXP _rBSEM_rHESS_SEM(SEXP inFileSEXP, SEXP outFilePathSEXP, SEXP nIterSEXP, SEXP nChainsSEXP, SEXP seedSEXP, SEXP methodSEXP) {
+// rHESS_SEM_internal
+int rHESS_SEM_internal(std::string inFile, std::string outFilePath, unsigned int nIter, unsigned int nChains, long long unsigned int seed, unsigned int method);
+RcppExport SEXP _rBSEM_rHESS_SEM_internal(SEXP inFileSEXP, SEXP outFilePathSEXP, SEXP nIterSEXP, SEXP nChainsSEXP, SEXP seedSEXP, SEXP methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -18,13 +18,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< unsigned int >::type nChains(nChainsSEXP);
     Rcpp::traits::input_parameter< long long unsigned int >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(rHESS_SEM(inFile, outFilePath, nIter, nChains, seed, method));
+    rcpp_result_gen = Rcpp::wrap(rHESS_SEM_internal(inFile, outFilePath, nIter, nChains, seed, method));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rBSEM_rHESS_SEM", (DL_FUNC) &_rBSEM_rHESS_SEM, 6},
+    {"_rBSEM_rHESS_SEM_internal", (DL_FUNC) &_rBSEM_rHESS_SEM_internal, 6},
     {NULL, NULL, 0}
 };
 

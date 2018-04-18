@@ -6,7 +6,7 @@ LDFLAGS=-larmadillo -lpthread -llapack -lopenblas -fopenmp -lboost_system -lboos
 
 # LDFLAGS= -L/usr/lib/x86_64-linux-gnu/ -fopenmp -larmadillo -lnvblas -llapack -ltrng4
 
-SOURCES_HESS=$(OTHERDIR)/global.cpp $(OTHERDIR)/utils.cpp $(OTHERDIR)/distr.cpp $(OTHERDIR)/HESS.cpp $(OTHERDIR)/imputation.cpp $(OTHERDIR)/run_HESS.cpp test.cpp
+SOURCES_HESS=$(OTHERDIR)/global.cpp $(OTHERDIR)/utils.cpp $(OTHERDIR)/distr.cpp $(OTHERDIR)/imputation.cpp $(OTHERDIR)/HESS.cpp $(OTHERDIR)/run_HESS.cpp test.cpp
 OBJECTS_HESS=$(SOURCES_HESS:.cpp=.o)
 
 all: $(SOURCES_HESS) HESS
@@ -18,6 +18,6 @@ HESS: $(OBJECTS_HESS)
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm *.o
 	rm $(OTHERDIR)/*.o
+	rm *.o
 	rm HESS_Reg

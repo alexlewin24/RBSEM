@@ -26,7 +26,8 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 		return 1;
 	}
 
-	unsigned int nBlocks = s.n_elem;
+	unsigned int nEquations = s.n_elem;
+	unsigned int nBlocks = s.n_elem+1;
 
 	// Add to X the intercept
 	arma::uword tmpUWord = arma::as_scalar(arma::find(blockLabel == 0,1,"first"));
@@ -34,16 +35,26 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	blockLabel.insert_rows( tmpUWord, arma::zeros<arma::ivec>(1) ); // add its blockLabel
 
 	// now find the indexes for each block in a more armadillo-interpretable way
-	std::vector<arma::uvec> blockIdx(nBlocks+1);
-	for( unsigned int k = 0; k<(nBlocks+1); ++k)
+	std::vector<arma::uvec> blockIdx(nBlocks);
+	for( unsigned int k = 0; k<(nBlocks); ++k)
 	{
 		blockIdx[k] = arma::find(blockLabel == k);
 	}
 
 	// XtX covariates only
-	arma::mat XtX = data.cols(blockIdx[0]).t() * data.cols(blockIdx[0]); // this is needed for crossover for example -- but I'd need to get all of them, not only blockIdx==0 TODO
-	arma::mat covariatesCorrelation = arma::inv( arma::diagmat( arma::sqrt(XtX.diag()) ) ) * XtX * arma::inv( arma::diagmat( arma::sqrt(XtX.diag()) ) );
-
+	arma::mat XtX;
+	std::vector<arma::mat> covariatesCorrelation(nEquations);
+	arma::uvec predictorsIdx;
+	
+	for(unsigned int k=0; k<nEquations; ++k)
+	{
+	  predictorsIdx = blockIdx[0];
+	  for(unsigned int j=1; j<=k; ++j)
+	    predictorsIdx = arma::join_cols(predictorsIdx,blockIdx[j]); // is there a more efficient way to do it? TODO
+	  
+	  XtX = data.cols(predictorsIdx).t() * data.cols(predictorsIdx); // this is needed for crossover for example
+	  covariatesCorrelation[k] = arma::inv( arma::diagmat( arma::sqrt(XtX.diag()) ) ) * XtX * arma::inv( arma::diagmat( arma::sqrt(XtX.diag()) ) );
+	}
 
 	// ############# Init the RNG generator/engine
 	std::random_device r;
@@ -93,21 +104,21 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	double sigma2_beta_0 = 10;
 
 	// arma::mat mean_beta_0(p+1, s); mean_beta_0.fill(m_beta_0); // this is assumed zero everywhere. STOP
-	std::vector<arma::mat> W_0(nBlocks);
+	std::vector<arma::mat> W_0(nEquations);
 	unsigned int tmpSize = 0;
 
 	// # gamma  (p+1xs elements, but the first row doesn't move, always 1, cause are the intercepts)
 	// this is taken into account further on in the algorithm, so no need to take into account now
 	// REMEMBER TO CHAIN X AND Y_k's (k'<k) with X FIRST for each k so that intercept is always first
 	// gamma_jk (j=1,..p  i.e. not 0 - k=0,s-1) comes from a Bernoulli distribution of parameters omega_j, who are all coming from a Beta(a_0,b_0)
-	std::vector<arma::vec> a_0(nBlocks);
-	std::vector<arma::vec> b_0(nBlocks);
+	std::vector<arma::vec> a_0(nEquations);
+	std::vector<arma::vec> b_0(nEquations);
 
-	for( unsigned int k=0; k<nBlocks; ++k)
+	for( unsigned int k=0; k<nEquations; ++k)
 	{
 		tmpSize = p+1;
 		if( k>0 )
-			tmpSize += arma::sum( s(arma::span(0,k)) );
+			tmpSize += arma::sum( s(arma::span(0,k-1)) );
 
 		W_0[k] = arma::eye( tmpSize, tmpSize ) * sigma2_beta_0;   // there's really no point in passing these matrices instead of the single coeff, but still...legacy code (TODO)
 		// notice moreover that this assumes that each block is regressed on ALL the previous ones
@@ -122,27 +133,27 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// ### Initialise and Start the chain
 
 	// ## Defines proposal parameters and temporary variables for the MCMC
-	arma::vec accCount = arma::zeros<arma::vec>(nBlocks); // one for each block
-	arma::mat accCount_tmp = arma::zeros<arma::mat>(nBlocks,nChains); // this is instead one for each block and each chain
+	arma::vec accCount = arma::zeros<arma::vec>(nEquations); // one for each block
+	arma::mat accCount_tmp = arma::zeros<arma::mat>(nEquations,nChains); // this is instead one for each block and each chain
 
 	// ## Initialise chain traces and states
 
-	std::vector<arma::mat> omega_init(nBlocks);
-	std::vector<arma::umat> gamma_init(nBlocks);
+	std::vector<arma::mat> omega_init(nEquations);
+	std::vector<arma::umat> gamma_init(nEquations);
 
-	std::vector<arma::mat> omega_curr(nBlocks);				//current state of the main chain
-	std::vector<arma::umat> gamma_curr(nBlocks);
-	arma::vec logLik_curr(nBlocks);
-	arma::vec logPrior_curr(nBlocks);
+	std::vector<arma::mat> omega_curr(nEquations);				//current state of the main chain
+	std::vector<arma::umat> gamma_curr(nEquations);
+	arma::vec logLik_curr(nEquations);
+	arma::vec logPrior_curr(nEquations);
 
-	std::vector<arma::cube> omega_state(nBlocks);				// Current state of ALL the chains, we need them for the global moves
-	std::vector<arma::ucube> gamma_state(nBlocks);
-	std::vector<arma::vec> logPrior_state(nBlocks);
-	std::vector<arma::vec> logLik_state(nBlocks);
+	std::vector<arma::cube> omega_state(nEquations);				// Current state of ALL the chains, we need them for the global moves
+	std::vector<arma::ucube> gamma_state(nEquations);
+	std::vector<arma::vec> logPrior_state(nEquations);
+	std::vector<arma::vec> logLik_state(nEquations);
 
 	arma::uvec tmpPredictorIdx;
 
-	for( unsigned int k=0; k<nBlocks; ++k)
+	for( unsigned int k=0; k<nEquations; ++k)
 	{
 
 		tmpSize = W_0[k].n_cols -1 ;  // no intercept
@@ -189,35 +200,40 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 	// # Define temperture ladder
 	double maxTemperature = arma::min(a_0[0]) - 2.; // due to the tempered gibbs moves
-	double temperatureRatio = 2.; // std::max( 100., (double)n );
+	arma::vec temperatureRatio(nEquations); temperatureRatio.fill(2.); // std::max( 100., (double)n );
+	double deltaTempRatio = 0.5;
+	  
+	std::vector<arma::vec> temperature(nEquations);
+	for(unsigned int k=0; k<nEquations; ++k){
+	  temperature[k] = arma::vec(nChains);
+  	temperature[k](0) = 1.;
+  
+  	for(unsigned int m=1; m<nChains; ++m)
+  		temperature[k](m) = std::min( maxTemperature, temperature[k](m-1)*temperatureRatio[k] );
+	}
 
-	arma::vec temperature(nChains);
-	temperature(0) = 1.;
-
-	for(unsigned int m=1; m<nChains; ++m)
-		temperature(m) = std::min( maxTemperature, temperature(m-1)*temperatureRatio );
-
-	for( unsigned int k=0; k<nBlocks; ++k)
+	for( unsigned int k=0; k<nEquations; ++k)
 	{
 		for(unsigned int m=1; m<nChains ; ++m)
 		{
-			logLik_state[k](m) = logLik_state[k](0)/temperature(m);
+			logLik_state[k](m) = logLik_state[k](0)/temperature[k](m);
 		}
 	}
 	
 	unsigned int nGlobalUpdates = floor( nChains/2 );
 
-	unsigned int countGlobalUpdates = 0;    // count the global updates that happen on the first chain
-	double accCountGlobalUpdates = 0.;		// count the accepted ones
-
-	unsigned int globalType;
+	std::vector<unsigned int> countGlobalUpdates = arma::conv_to<std::vector<unsigned int>>::from(arma::zeros<arma::uvec>(nEquations));    // count the global updates that happen on the first chain
+	std::vector<double> accCountGlobalUpdates = arma::conv_to<std::vector<double>>::from(arma::zeros<arma::vec>(nEquations));  // count the accepted ones
 
 	// All-exchange operator hyper pars
 
 	// Crossover operator hyper pars (see http://www3.stat.sinica.edu.tw/statistica/oldpdf/A10n21.pdf
-	// double pXO_0 = 0.1, pXO_1 = 0.2 , pXO_2 = 0.2;
-	// double p11 = pXO_0*pXO_0 + (1.-pXO_0)*(1.-pXO_0) ,p12 = 2.*pXO_0*(1.-pXO_0) ,p21= pXO_1*(1.-pXO_2) + pXO_2*(1.-pXO_1) ,p22 = pXO_1*pXO_2 + (1.-pXO_1)*(1.-pXO_2);
+	double pXO_0 = 0.1, pXO_1 = 0.2 , pXO_2 = 0.2;
+	double p11 = pXO_0*pXO_0 + (1.-pXO_0)*(1.-pXO_0) ,p12 = 2.*pXO_0*(1.-pXO_0) ,p21= pXO_1*(1.-pXO_2) + pXO_2*(1.-pXO_1) ,p22 = pXO_1*pXO_2 + (1.-pXO_1)*(1.-pXO_2);
 
+	arma::vec parCrossOver(7);
+	parCrossOver(0) = pXO_0;	parCrossOver(1) = pXO_1;	parCrossOver(2) = pXO_2;
+	parCrossOver(3) = p11;	parCrossOver(4) = p12;	parCrossOver(5) = p21;	parCrossOver(6) = p22;
 
 	// NON-BANDIT related things
 	unsigned int nUpdates = p/10; //arbitrary nunmber, should I use something different?
@@ -284,21 +300,21 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	std::ofstream gammaOutFile; 
 
 	// zero out files
-	for( unsigned int k=0; k<nBlocks; ++k)
+	for( unsigned int k=0; k<nEquations; ++k)
 	{
 		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k)+"_out.txt" , std::ios_base::trunc); 
 		gammaOutFile.close();
 	}
 
 	// Variable to hold the output to file ( current state )
-	std::vector<arma::umat> gamma_out(nBlocks);
-	for( unsigned int k=0; k<nBlocks; ++k)
+	std::vector<arma::umat> gamma_out(nEquations);
+	for( unsigned int k=0; k<nEquations; ++k)
 		gamma_out[k] = gamma_state[k].slice(0); // out var for the gammas
 
 	// could use save but I need to sum and then normalise so I'd need to store another matrix for each...
 
 	// first output
-	for( unsigned int k=0; k<nBlocks; ++k)
+	for( unsigned int k=0; k<nEquations; ++k)
 	{
 		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k)+"_out.txt" , std::ios_base::trunc);
 		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k])) << std::flush;
@@ -320,17 +336,19 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 		Model::SEM_MCMC_step(data,blockIdx, 
 					omega_state, gamma_state, logPrior_state, logLik_state,
-					a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp, nUpdates, temperature, 0); // method forced to zero now, TODO
+					a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp, nUpdates, temperature, 0, // method forced to zero now, TODO
+					parCrossOver, covariatesCorrelation, nGlobalUpdates, countGlobalUpdates, accCountGlobalUpdates,
+					maxTemperature, temperatureRatio, deltaTempRatio); 
 
 		// UPDATE OUTPUT STATE
-		for( unsigned int k=0; k<nBlocks; ++k)
+		for( unsigned int k=0; k<nEquations; ++k)
 			gamma_out[k] += gamma_state[k].slice(0); // the result of the whole procedure is now my new mcmc point, so add that up
 		
 		// Print something on how the chain is going
 		if( (iteration+1) % 100 == 0 )
 		{
 			// Update Acc Rate only for each (block's) main chain
-			for( unsigned int k=0; k<nBlocks; ++k)
+			for( unsigned int k=0; k<nEquations; ++k)
 				accCount(k) = accCount_tmp(k,0)/nUpdates;
 
 			std::cout << " Running iteration " << iteration+1 << " ... loc.acc.rate ~ " << accCount.t()/(double)iteration /*<< std::endl*/ ; 
@@ -345,7 +363,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 		// Output to files every now and then
 		if( (iteration+1) % (1000) == 0 )
 		{
-			for( unsigned int k=0; k<nBlocks; ++k)
+			for( unsigned int k=0; k<nEquations; ++k)
 			{
 				gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k)+"_out.txt" , std::ios_base::trunc);
 				gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)iteration+1.0) << std::flush;
@@ -359,7 +377,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	std::cout << " MCMC ends. Final temperature ratio ~ " << temperatureRatio << "   --- Saving results and exiting" << std::endl;
 
 	// Output to files one last time
-	for( unsigned int k=0; k<nBlocks; ++k)
+	for( unsigned int k=0; k<nEquations; ++k)
 	{
 		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k)+"_out.txt" , std::ios_base::trunc);
 		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)nIter+1.0) << std::flush;
@@ -370,181 +388,3 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// Exit
 	return 0;
 }
-
-
-/*
-		// ####################
-		// ## Global moves
-		if( nChains > 1 )
-		{
-			for(unsigned int k=0; k < nGlobalUpdates ; ++k)  // repeat global updates
-			{
-
-				// # Global move
-				// Select the type of exchange/crossOver to apply
-
-				globalType = Distributions::randIntUniform(0,6);   // (nChains-1)*(nChains-2)/2 is the number of possible chain combinations with nChains
-
-				switch(globalType){
-
-					case 0: break;
-
-					// -- Exchange
-					case 1: Model::exchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
-							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					case 2: Model::nearExchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
-							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					case 3: Model::allExchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
-							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					// -- CrossOver
-					case 4: Model::adapCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature, 
-								pXO_0, pXO_1, pXO_2, p11, p12, p21, p22,
-								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					case 5: Model::uniformCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature,
-								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					case 6: Model::blockCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, covariatesCorrelation, temperature, 0.25,
-								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-				}
-
-
-			} // end "K" Global Moves
-
-			// Update the output vars
-			mcmc_omega.slice(i) = omega_state.slice(0);
-			mcmc_gamma.slice(i) = gamma_state.slice(0);
-			mcmc_logPrior(i) = logPrior_state(0);
-			mcmc_logLik(i) = logLik_state(0);
-
-			// ## Update temperature ladder
-			if ( i % 10 == 0 )
-			{
-				if( (accCountGlobalUpdates / (double)countGlobalUpdates) > 0.35 )
-				{
-					temperatureRatio = std::max( 2. , temperatureRatio-deltaTempRatio );
-				}else{
-		// ####################
-		// ## Global moves
-		if( nChains > 1 )
-		{
-			for(unsigned int k=0; k < nGlobalUpdates ; ++k)  // repeat global updates
-			{
-
-				// # Global move
-				// Select the type of exchange/crossOver to apply
-
-				globalType = Distributions::randIntUniform(0,6);   // (nChains-1)*(nChains-2)/2 is the number of possible chain combinations with nChains
-
-				switch(globalType){
-
-					case 0: break;
-
-					// -- Exchange
-					case 1: Model::exchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
-							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					case 2: Model::nearExchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
-							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					case 3: Model::allExchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
-							temperature, nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					// -- CrossOver
-					case 4: Model::adapCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature, 
-								pXO_0, pXO_1, pXO_2, p11, p12, p21, p22,
-								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					case 5: Model::uniformCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature,
-								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-
-					case 6: Model::blockCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-								a_r_0, b_r_0, W_0, a_0, b_0, Y, X, covariatesCorrelation, temperature, 0.25,
-								nChains, nGlobalUpdates, accCountGlobalUpdates, countGlobalUpdates);
-							break;
-				}
-
-
-			} // end "K" Global Moves
-
-			// Update the output vars
-			mcmc_omega.slice(i) = omega_state.slice(0);
-			mcmc_gamma.slice(i) = gamma_state.slice(0);
-			mcmc_logPrior(i) = logPrior_state(0);
-			mcmc_logLik(i) = logLik_state(0);
-
-			// ## Update temperature ladder
-			if ( i % 10 == 0 )
-			{
-				if( (accCountGlobalUpdates / (double)countGlobalUpdates) > 0.35 )
-				{
-					temperatureRatio = std::max( 2. , temperatureRatio-deltaTempRatio );
-				}else{
-					temperatureRatio += deltaTempRatio;
-				}
-
-				temperatureRatio = std::min( temperatureRatio , pow( maxTemperature, 1./( (double)nChains - 1.) ) );
-
-				// std::cout << "---------------------------------- \n"<< temperature << '\n'<< std::flush;
-				for(unsigned int m=1; m<nChains; ++m)
-				{
-					// untempered lik and prior
-					logLik_state(m) = logLik_state(m)*temperature(m);
-					logPrior_state(m) = logPrior_state(m)*temperature(m);
-
-					// std::cout << '\n'<< temperature(m-1) << " " << temperature(m-1)*temperatureRatio  << '\n' << '\n'<< std::flush;
-					temperature(m) = std::min( maxTemperature, temperature(m-1)*temperatureRatio );
-
-					// re-tempered lik and prior
-					logLik_state(m) = logLik_state(m)/temperature(m);
-					logPrior_state(m) = logPrior_state(m)/temperature(m);
-
-				}
-			}
-
-
-		} //end Global move's section
-					temperatureRatio += deltaTempRatio;
-				}
-
-				temperatureRatio = std::min( temperatureRatio , pow( maxTemperature, 1./( (double)nChains - 1.) ) );
-
-				// std::cout << "---------------------------------- \n"<< temperature << '\n'<< std::flush;
-				for(unsigned int m=1; m<nChains; ++m)
-				{
-					// untempered lik and prior
-					logLik_state(m) = logLik_state(m)*temperature(m);
-					logPrior_state(m) = logPrior_state(m)*temperature(m);
-
-					// std::cout << '\n'<< temperature(m-1) << " " << temperature(m-1)*temperatureRatio  << '\n' << '\n'<< std::flush;
-					temperature(m) = std::min( maxTemperature, temperature(m-1)*temperatureRatio );
-
-					// re-tempered lik and prior
-					logLik_state(m) = logLik_state(m)/temperature(m);
-					logPrior_state(m) = logPrior_state(m)/temperature(m);
-
-				}
-			}
-
-
-		} //end Global move's section
-*/

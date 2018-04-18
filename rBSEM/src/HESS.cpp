@@ -865,34 +865,167 @@ namespace Model
 	} // end CrossOver
 
 
+void MCMC_Global_step(const arma::mat&Y, const arma::mat &X, unsigned int thisBlockIdx,
+                      arma::cube& omega_state, arma::ucube& gamma_state, 
+                      arma::vec& logPrior_state, arma::vec& logLik_state, 
+                      const double a_r_0, const double b_r_0, const arma::mat& W_0, 
+                      const arma::vec& a_0, const arma::vec& b_0, 
+                      const arma::vec& pCrossOver, const std::vector<arma::mat>& covariatesCorrelation, // tuning pars
+                      const unsigned int nChains, const unsigned int nGlobalUpdates,					// hyper tuning pars
+                      double& accCountGlobalUpdates, unsigned int& countGlobalUpdates,
+                      const arma::vec& temperature)
+{
+  
+  double pXO_0 = pCrossOver(0);
+  double pXO_1 = pCrossOver(1);
+  double pXO_2 = pCrossOver(2);
+  double p11 = pCrossOver(3);
+  double p12 = pCrossOver(4);
+  double p21 = pCrossOver(5);
+  double p22 = pCrossOver(6);
+  
+  unsigned int globalType;
+  
+  for(unsigned int k=0; k < nGlobalUpdates ; ++k)  // repeat global updates
+  {
+    // # Global move
+    // Select the type of exchange/crossOver to apply
+    
+    globalType = Distributions::randIntUniform(0,6);
+    
+    switch(globalType){
+    
+    case 0: break;
+      
+      // -- Exchange
+    case 1: Model::exchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
+                                 temperature, nChains, nGlobalUpdates,
+                                 accCountGlobalUpdates, countGlobalUpdates);
+      break;
+      
+    case 2: Model::nearExchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
+                                     temperature, nChains, nGlobalUpdates,
+                                     accCountGlobalUpdates, countGlobalUpdates);
+      break;
+      
+    case 3: Model::allExchange_step(gamma_state, omega_state, logPrior_state, logLik_state,
+                                    temperature, nChains, nGlobalUpdates,
+                                    accCountGlobalUpdates, countGlobalUpdates);
+      break;
+      
+      // -- CrossOver
+    case 4: Model::adapCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
+                                      a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature, 
+                                      pXO_0, pXO_1, pXO_2, p11, p12, p21, p22,
+                                      nChains, nGlobalUpdates,
+                                      accCountGlobalUpdates, countGlobalUpdates);
+      break;
+      
+    case 5: Model::uniformCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
+                                         a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature,
+                                         nChains, nGlobalUpdates,
+                                         accCountGlobalUpdates, countGlobalUpdates);
+      break;
+      
+    case 6: Model::blockCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
+                                       a_r_0, b_r_0, W_0, a_0, b_0, Y, X, covariatesCorrelation[thisBlockIdx], temperature, 0.25,
+                                       nChains, nGlobalUpdates,
+                                       accCountGlobalUpdates, countGlobalUpdates);
+      break;
+    }
+    
+  } // end "K" Global Moves
+  
+}
+
+
 	void SEM_MCMC_step(const arma::mat& data, std::vector<arma::uvec> blockIdx,
 					std::vector<arma::cube>& omega_state, std::vector<arma::ucube>& gamma_state, 
 					std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state,
 					const double a_r_0, const double b_r_0, const std::vector<arma::mat>& W_0, 
 					const std::vector<arma::vec>& a_0, const std::vector<arma::vec>& b_0,
-					arma::mat& accCount, unsigned int nUpdates, const arma::vec& temp, int method)
+					arma::mat& accCount, unsigned int nUpdates, std::vector<arma::vec>& temp, int method,
+					const arma::vec& parCrossOver, const std::vector<arma::mat>& covariatesCorrelation,
+					const unsigned int nGlobalUpdates,
+					std::vector<unsigned int>& countGlobalUpdates, std::vector<double>& accCountGlobalUpdates,
+					const double maxTemperature, arma::vec& temperatureRatio, const double deltaTempRatio)
 	{
 		// This function will take care of all the local AND global moves for all the chains
 
+		unsigned int nThreads = omp_get_max_threads();
+	  unsigned int nChains = omega_state[0].n_slices;
+	  unsigned int nBlocks = blockIdx.size();
+	  unsigned int nEquations = nBlocks-1;
+	  
+	  arma::uvec predictorsIdx;
 		// for now only local moves are performed,TODO
-
-		// switch(method){
-					
-		// 	case 0:
-		// 			#pragma omp parallel for num_threads(nThreads)
-		// 			for(unsigned int m=0; m<nChains ; ++m)
-		// 			{
-		// 					Model::MC3_SUR_MCMC_step(Y,X, omega_state.slice(m),gamma_state.slice(m),logPrior_state(m),logLik_state(m),
-		// 									a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp(m), nUpdates, temperature(m)); // in ESS accCount could be a vec, one for each chain
-		// 			}// end parallel updates
-		// 			break;
 		
-		// }
+	  for(unsigned int k=0; k < nEquations ; ++k){
+	    
+	    predictorsIdx = blockIdx[0];
+	    for(unsigned int j=1; j<=k; ++j)
+	      predictorsIdx = arma::join_cols(predictorsIdx,blockIdx[j]); // is there a more efficient way to do it? TODO
+	      
 
+	      switch(method){
+	      
+	      case 0:
+          #pragma omp parallel for num_threads(nThreads)
+					for(unsigned int m=0; m<nChains ; ++m)
+					{
+							Model::MC3_SUR_MCMC_step(data.cols( blockIdx[k+1] ),data.cols( predictorsIdx ),
+                                       omega_state[k].slice(m),gamma_state[k].slice(m),
+                                       logPrior_state[k](m),logLik_state[k](m),
+											                 a_r_0, b_r_0, W_0[k], a_0[k], b_0[k], accCount(k,m), 
+											                 nUpdates, temp[k](m));
+					}// end parallel updates
+          break; // end case 0 -- case 1 is similar but not yet developed
+					
+	      }
+	      
+	      // ####################
+        // Global moves
+        if(nChains>1)
+        {
+          Model::MCMC_Global_step(data.cols( blockIdx[k+1] ),data.cols( predictorsIdx ), k,
+                         omega_state[k], gamma_state[k],logPrior_state[k], logLik_state[k],
+                         a_r_0, b_r_0, W_0[k], a_0[k], b_0[k],
+                         parCrossOver, covariatesCorrelation,
+                         nChains, nGlobalUpdates,accCountGlobalUpdates[k], countGlobalUpdates[k],
+                         temp[k]);
+          
+          
+          // ## Update temperature ladder
+          if ( Distributions::randIntUniform(0,9) == 0 ) //once every ten times on average
+          {
+            if( (accCountGlobalUpdates[k] / (double)countGlobalUpdates[k]) > 0.35 )
+            {
+              temperatureRatio(k) = std::max( 2. , temperatureRatio(k)-deltaTempRatio );
+            }else{
+              temperatureRatio(k) += deltaTempRatio;
+            }
+            
+            temperatureRatio(k) = std::min( temperatureRatio(k) , pow( maxTemperature, 1./( (double)nChains - 1.) ) );
+            
+            for(unsigned int m=1; m<nChains; ++m)
+            {
+              // untempered lik and prior
+              logLik_state[k](m) = logLik_state[k](m)*temp[k](m);
+              logPrior_state[k](m) = logPrior_state[k](m)*temp[k](m);
+              
+              temp[k](m) = std::min( maxTemperature, temp[k](m-1)*temperatureRatio(k) );
+              
+              // re-tempered lik and prior
+              logLik_state[k](m) = logLik_state[k](m)/temp[k](m);
+              logPrior_state[k](m) = logPrior_state[k](m)/temp[k](m);
+              
+            }
+          }
+          
+          
+        } //end Global move's section
 
-		// for now do absolutely nothing
-		return;
-
+    } // end block update
 
 	}
 

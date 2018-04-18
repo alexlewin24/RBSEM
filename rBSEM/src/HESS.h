@@ -31,13 +31,26 @@ namespace Model{
 					const double a_r_0, const double b_r_0, const arma::mat& W_0, 
 					const arma::vec& a_0, const arma::vec& b_0, double& accCount, unsigned int nUpdates, double temp);
 
+	void MCMC_Global_step(const arma::mat&Y, const arma::mat &X, unsigned int thisBlockIdx,
+          arma::cube& omega_state, arma::ucube& gamma_state, 
+          arma::vec& logPrior_state, arma::vec& logLik_state, 
+          const double a_r_0, const double b_r_0, const arma::mat& W_0, 
+          const arma::vec& a_0, const arma::vec& b_0, 
+          const arma::vec& pCrossOver, const std::vector<arma::mat>& covariatesCorrelation, // tuning pars
+          const unsigned int nChains, const unsigned int nGlobalUpdates,					// hyper tuning pars
+          double& accCountGlobalUpdates, unsigned int& countGlobalUpdates,
+          const arma::vec& temperature);
 
 	void SEM_MCMC_step(const arma::mat& data, std::vector<arma::uvec> blockIdx,
-					std::vector<arma::cube>& omega_state, std::vector<arma::ucube>& gamma_state, 
-					std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state,
-					const double a_r_0, const double b_r_0, const std::vector<arma::mat>& W_0, 
-					const std::vector<arma::vec>& a_0, const std::vector<arma::vec>& b_0,
-					arma::mat& accCount, unsigned int nUpdates, const arma::vec& temp, int method);
+          std::vector<arma::cube>& omega_state, std::vector<arma::ucube>& gamma_state, 
+          std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state,
+          const double a_r_0, const double b_r_0, const std::vector<arma::mat>& W_0, 
+          const std::vector<arma::vec>& a_0, const std::vector<arma::vec>& b_0,
+          arma::mat& accCount, unsigned int nUpdates, std::vector<arma::vec>& temp, int method,
+          const arma::vec& parCrossOver, const std::vector<arma::mat>& covariatesCorrelation,
+          const unsigned int nGlobalUpdates, 
+          std::vector<unsigned int>& countGlobalUpdates, std::vector<double>& accCountGlobalUpdates,
+          const double maxTemperature, arma::vec& temperatureRatio, const double deltaTempRatio);
 	
 
 	void exchange_step(arma::ucube& gamma_state, arma::cube& omega_state, 

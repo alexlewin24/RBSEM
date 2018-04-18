@@ -9,9 +9,9 @@ Description: More details about what the package does. See
        <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file>
        for details on how to write this part.
 License: GPL (>= 2)
-Depends: R (>= 2.10)
-LinkingTo: Rcpp, RcppArmadillo (>= 0.8.400.0.0), BH
+RoxygenNote: 6.0.1
+Depends: R (>= 3.2)
+LinkingTo: Rcpp, RcppArmadillo (>= 0.8.400), BH
 Imports: Rcpp
 Suggests: testthat
 LazyData: true
-RoxygenNote: 6.0.1

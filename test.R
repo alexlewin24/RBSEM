@@ -27,15 +27,15 @@ use_rcpp()
 
 
 # better build rutine
-devtools::test(pkg = "rBSEM")
+
 devtools::document("rBSEM")
 devtools::check("rBSEM", cran=TRUE)
 devtools::build("rBSEM")
 remove.packages("rBSEM")
 install.packages("rBSEM_0.1.0.tar.gz", repos = NULL, type="source")
-library('rBSEM')
-rHESS_SEM(inFile="data/sem_data.txt",outFilePath="Data/",nIter=20000)
-
+# devtools::test(pkg = "rBSEM")
+rBSEM::rHESS_SEM_internal(inFile="data/sem_data.txt",outFilePath="data/",nIter=2000)
+rBSEM::rHESS_SEM(inFile="data/sem_data.txt",outFilePath="data/",nIter=2000)
 
 
 
