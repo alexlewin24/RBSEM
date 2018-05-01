@@ -9,8 +9,9 @@ namespace Utils{
 
 	bool readData(std::string fileName, unsigned int &nOutcomes, unsigned int &nPredictors, unsigned int &nObservations, arma::mat &Y, arma::mat& X);
 
-	bool readDataSEM(std::string fileName, arma::mat &data, arma::ivec &blockIndexes, arma::ivec &variableType,
-			arma::uvec &missingDataIndexes, arma::uvec &nOutcomes, unsigned int &nPredictors, unsigned int &nObservations);
+  bool readDataSEM(std::string fileName, arma::mat &data, arma::ivec &blockIndexes, arma::ivec &varType,
+                   arma::umat SEMGraph, arma::uvec &missingDataIndexes, unsigned int &nObservations,
+                   arma::uvec &nOutcomes, arma::uvec &nPredictors, std::vector<arma::uvec>& SEMEquations);
 
 	template <typename T> int sgn(T val)
 	{

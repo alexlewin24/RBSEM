@@ -1,7 +1,8 @@
 #include "run_HESS.h"
-// #include <boost/filesystem.hpp>  // can't use it as it doesn't work in R
 
-int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, unsigned int nChains, long long unsigned int seed, int method)
+int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
+             unsigned int nIter, unsigned int nChains,
+             unsigned long long seed, int method)
 {
 
 	omp_init_lock(&RNGlock);  // init RNG lock for the parallel part
@@ -13,26 +14,69 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// ###########################################################
 
 	// ############# Read the data
-	unsigned int n,p;
-	arma::uvec s,NAIdx;
-	arma::ivec blockLabel,varType;
+	unsigned int nObservations;
+	std::vector<arma::uvec> SEMEquations;
+	arma::uvec nOutcomes, nPredictors;
+	
+	arma::uvec missingDataIndexes;
+	
 	arma::mat data;   // here are ALL the data
 
-	if( Utils::readDataSEM(inFile, data, blockLabel, varType, NAIdx,
-		s, p, n) ){
-		std::cout << "Reading successfull!" << std::endl;
+	arma::ivec blockLabel; blockLabel.load("tmp/blockIndexes.txt");
+	arma::ivec varType; varType.load("tmp/varType.txt");
+	arma::umat SEMGraph; SEMGraph.load("tmp/SEMGraph.txt");
+	
+	if( Utils::readDataSEM(inFile, data, blockLabel, varType, SEMGraph,
+                        missingDataIndexes, nObservations,
+                        nOutcomes, nPredictors, SEMEquations) ){
+	  std::cout << "Reading successfull!" << std::endl;
 	}else{
 		std::cout << "OUCH! EXITING --- " << std::endl;
 		return 1;
 	}
 
-	unsigned int nEquations = s.n_elem;
-	unsigned int nBlocks = s.n_elem+1;
-
-	// Add to X the intercept
-	arma::uword tmpUWord = arma::as_scalar(arma::find(blockLabel == 0,1,"first"));
-	data.insert_cols( tmpUWord , arma::ones<arma::vec>(n) );
-	blockLabel.insert_rows( tmpUWord, arma::zeros<arma::ivec>(1) ); // add its blockLabel
+	unsigned int nEquations = SEMEquations.size();  // nEquations < nBlock
+	unsigned int nBlocks = SEMGraph.n_cols;
+	
+	// Add to X the intercept   
+	arma::uword interceptLabel;
+	if( autoAddIntercept )
+	{
+	  interceptLabel = arma::max(blockLabel)+1;
+	  
+	  // add a column to the data matrix
+	  data.insert_cols( data.n_cols , arma::ones<arma::vec>(nObservations) );
+	  
+	  // add its blockLabel
+	  blockLabel.insert_rows( blockLabel.n_elem , interceptLabel * arma::ones<arma::ivec>(1) );
+	  nBlocks += 1;
+	  
+	  // add its corresponding row/column in SEMGraph
+	  SEMGraph.resize( SEMGraph.n_rows+1 , SEMGraph.n_cols+1 ); // grow
+	  SEMGraph.col( SEMGraph.n_cols-1 ).fill(0); //set last col to zero
+	  // and now fill it
+	  for( unsigned int k=0; k<nEquations; ++k)
+	  {
+	    SEMGraph(SEMGraph.n_rows-1,SEMEquations[k](0)) = 2; // for each equation, put to 2 the edge intercept -> SEMEquations[k](0) [which is outcomeIdx[k] ]
+	    // and add it to SEMEquations as well (IN FIRST POSITION!) ..
+	    SEMEquations[k].insert_rows( 1 , interceptLabel * arma::ones<arma::uvec>(1) ); 
+	    // [ if I provide only the uword interceptLabels I add that many elements to the vec 
+	    //  rather than adding IT to the vec ] ..
+	    
+	    // .. and to nPredictors
+	    nPredictors(k) += 1;
+	  }
+	  
+	}
+	
+	std::cout << "SEM structure: "<< std::endl;
+	for( unsigned int k=0; k<nEquations; ++k)
+	{
+	  std::cout << "Eq " << k+1 << "  :  " << SEMEquations[k](0) << " ~ " << 
+	    arma::trans(SEMEquations[k].subvec(arma::span(1,SEMEquations[k].n_elem-1)));// << std::endl;
+	}
+	std::cout << std::endl;
+	// std::cout << std::endl << SEMGraph << std::endl;
 
 	// now find the indexes for each block in a more armadillo-interpretable way
 	std::vector<arma::uvec> blockIdx(nBlocks);
@@ -40,22 +84,90 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	{
 		blockIdx[k] = arma::find(blockLabel == k);
 	}
+	
 
 	// XtX covariates only
-	arma::mat XtX;
+	std::vector<arma::mat> XtX(nEquations);
 	std::vector<arma::mat> covariatesCorrelation(nEquations);
-	arma::uvec predictorsIdx;
+	
+	std::vector<arma::uvec> outcomesIdx(nEquations);
+	std::vector<arma::uvec> fixedPredictorsIdx(nEquations);
+	std::vector<arma::uvec> vsPredictorsIdx(nEquations);
+	arma::uvec nFIXPredictors(nEquations);
+	arma::uvec nVSPredictors(nEquations);
+	
+	arma::uvec tmpToAdd; unsigned int left;
+	arma::vec tmpDiag;
 	
 	for(unsigned int k=0; k<nEquations; ++k)
 	{
-	  predictorsIdx = blockIdx[0];
-	  for(unsigned int j=1; j<=k; ++j)
-	    predictorsIdx = arma::join_cols(predictorsIdx,blockIdx[j]); // is there a more efficient way to do it? TODO
+	  //outcomes
+	  // outcomesIdx[k] = arma::uvec(nOutcomes(k));
+	  outcomesIdx[k] = blockIdx[SEMEquations[k](0)];
 	  
-	  XtX = data.cols(predictorsIdx).t() * data.cols(predictorsIdx); // this is needed for crossover for example
-	  covariatesCorrelation[k] = arma::inv( arma::diagmat( arma::sqrt(XtX.diag()) ) ) * XtX * arma::inv( arma::diagmat( arma::sqrt(XtX.diag()) ) );
+	  
+	  // make up the sets for the predictors
+	  fixedPredictorsIdx[k] = arma::uvec(nPredictors(k)); // init it big
+
+	  //reset
+	  left = 0;
+	  
+	  for(unsigned int j=1; j < (SEMEquations[k].n_elem); ++j)  //elem 0 is the outcome block
+	  {
+	    if( SEMGraph(SEMEquations[k](j),SEMEquations[k](0)) == 2 )
+	    {
+  	    tmpToAdd = blockIdx[SEMEquations[k](j)];
+  	    fixedPredictorsIdx[k].subvec( left, left + tmpToAdd.n_elem -1 ) = tmpToAdd;
+  	    left += tmpToAdd.n_elem;
+	    }
+	  }
+	  fixedPredictorsIdx[k].resize(left); // resize it to correct dimension
+	  nFIXPredictors(k) = left;
+	  
+	  // check which predictors are to be selected
+	  vsPredictorsIdx[k] = arma::uvec(nPredictors(k));  // init it "big"
+	  //reset
+	  left = 0;
+
+	  for(unsigned int j=1; j < (SEMEquations[k].n_elem); ++j)  //elem 0 is the outcome block
+	  {
+	    if( SEMGraph(SEMEquations[k](j),SEMEquations[k](0)) == 1 )
+	    {
+  	    tmpToAdd = blockIdx[SEMEquations[k](j)];
+	      vsPredictorsIdx[k].subvec( left, left + tmpToAdd.n_elem -1 ) = tmpToAdd;
+  	    left += tmpToAdd.n_elem;
+	    }
+	  }
+	  vsPredictorsIdx[k].resize(left); // resize it to correct dimension
+	  nVSPredictors(k) = left;
+	  
+	  // compute XtX and useful matrix
+	  // note that we need it for all predctors, not just the one on which we VS
+	  XtX[k] = data.cols( arma::join_cols( fixedPredictorsIdx[k], vsPredictorsIdx[k] ) ).t() *
+	           data.cols( arma::join_cols( fixedPredictorsIdx[k], vsPredictorsIdx[k] ) ); // this is needed for crossover for example
+	  
+	  // now covariatesCorrelation, but only for the VS predictors
+	  tmpDiag = XtX[k].diag(); 
+	  tmpDiag.shed_rows(0,nFIXPredictors(k)-1);  // what's left should be the one corresp to vsPreds
+	  
+	  covariatesCorrelation[k] = 
+	    arma::inv( arma::diagmat( arma::sqrt(tmpDiag) ) ) * 
+	      XtX[k].submat(nFIXPredictors(k),nFIXPredictors(k),nFIXPredictors(k)+nVSPredictors(k)-1,nFIXPredictors(k)+nVSPredictors(k)-1) * 
+      arma::inv( arma::diagmat( arma::sqrt(tmpDiag) ) );
+	  
 	}
 
+ 	
+//   // check indexes
+//   for(unsigned int k=0; k<nEquations; ++k)
+//   {
+//     std::cout << " Indexes for block "<< k+1 << std::endl;
+//     std::cout << outcomesIdx[k].t() <<std::flush;
+//     std::cout << fixedPredictorsIdx[k].t() <<std::flush;
+//     std::cout << vsPredictorsIdx[k].t() <<std::endl;
+//   }
+	
+	
 	// ############# Init the RNG generator/engine
 	std::random_device r;
 	unsigned int nThreads = omp_get_max_threads();
@@ -100,12 +212,11 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// for k>1 this includes the prior on the lambdas as well, since they have no different treatment! (TODO)
 	// Beta comes from a Matrix Normal distribution with parameters MN(mean_beta_0,W_0,I_sk)   I_sk could be R_k, but is it worth it?
 
-	double m_beta_0 = 0;  // this are common for all the coefficients
+	// double m_beta_0 = 0;  // this are common for all the coefficients
 	double sigma2_beta_0 = 10;
 
 	// arma::mat mean_beta_0(p+1, s); mean_beta_0.fill(m_beta_0); // this is assumed zero everywhere. STOP
 	std::vector<arma::mat> W_0(nEquations);
-	unsigned int tmpSize = 0;
 
 	// # gamma  (p+1xs elements, but the first row doesn't move, always 1, cause are the intercepts)
 	// this is taken into account further on in the algorithm, so no need to take into account now
@@ -116,22 +227,15 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 	for( unsigned int k=0; k<nEquations; ++k)
 	{
-		tmpSize = p+1;
-		if( k>0 )
-			tmpSize += arma::sum( s(arma::span(0,k-1)) );
+		W_0[k] = arma::eye( nPredictors(k), nPredictors(k) ) * sigma2_beta_0;   // there's really no point in passing these matrices instead of the single coeff, but still...legacy code (TODO)
+	  // notice that this needs to be there for all predictors ... 
 
-		W_0[k] = arma::eye( tmpSize, tmpSize ) * sigma2_beta_0;   // there's really no point in passing these matrices instead of the single coeff, but still...legacy code (TODO)
-		// notice moreover that this assumes that each block is regressed on ALL the previous ones
-
-		a_0[k] = arma::vec(tmpSize); a_0[k].fill( 5. ); 		// the average of a beta is E[p]=a/(a+b), this way E[p] <= 1.% FOR EVERY OUTCOME
-		b_0[k] = arma::vec(tmpSize); b_0[k].fill( std::max( (double)p , 500.) - 5. );
-		// again this could be different for every block, depending on the actual number of coeffs, but... (TODO)
-
+	  // But this is only for the ones that are in VS
+		a_0[k] = arma::vec(nVSPredictors(k)); a_0[k].fill( 5. ); 		// the average of a beta is E[p]=a/(a+b), this way E[p] <= 1.% FOR EVERY OUTCOME
+		b_0[k] = arma::vec(nVSPredictors(k)); b_0[k].fill( std::max( (double)nVSPredictors(k) , 500.) - 5. );
 	}
 
-	
 	// ### Initialise and Start the chain
-
 	// ## Defines proposal parameters and temporary variables for the MCMC
 	arma::vec accCount = arma::zeros<arma::vec>(nEquations); // one for each block
 	arma::mat accCount_tmp = arma::zeros<arma::mat>(nEquations,nChains); // this is instead one for each block and each chain
@@ -151,16 +255,12 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	std::vector<arma::vec> logPrior_state(nEquations);
 	std::vector<arma::vec> logLik_state(nEquations);
 
-	arma::uvec tmpPredictorIdx;
-
 	for( unsigned int k=0; k<nEquations; ++k)
 	{
 
-		tmpSize = W_0[k].n_cols -1 ;  // no intercept
-
 		// different for each block?
-		omega_init[k] = arma::ones<arma::mat>(tmpSize,s(k)) / static_cast<double>(tmpSize);
-		gamma_init[k] = arma::zeros<arma::umat>(tmpSize,s(k));
+		omega_init[k] = arma::ones<arma::mat>(nVSPredictors(k), nOutcomes(k) ) / static_cast<double>(nVSPredictors(k));
+		gamma_init[k] = arma::zeros<arma::umat>( nVSPredictors(k), nOutcomes(k) );
 
 		// TODO, these could be read from file, but how? for each block?	
 		// if( omegaInitPath == "" )
@@ -171,8 +271,8 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 		// 			gamma_init(j,l) = Distributions::randBernoulli(omega_init(j,l));
 	
 		// init
-		omega_state[k] = arma::cube(tmpSize,s(k),nChains); 	
-		gamma_state[k] = arma::ucube(tmpSize,s(k),nChains);	
+		omega_state[k] = arma::cube(nVSPredictors(k),nOutcomes(k),nChains); 	
+		gamma_state[k] = arma::ucube(nVSPredictors(k),nOutcomes(k),nChains);	
 
 		logPrior_state[k] = arma::vec(nChains);
 		logLik_state[k] = arma::vec(nChains);
@@ -183,11 +283,9 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 
 		logPrior_state[k](0) = Model::logSURPrior(omega_init[k], gamma_init[k], a_0[k], b_0[k]);
 
-		tmpPredictorIdx = blockIdx[0];
-		for( unsigned int l=0; l<k; ++l)
-			tmpPredictorIdx.insert_rows(tmpPredictorIdx.n_elem, blockIdx[l+1]);
-
-		logLik_state[k](0) = Model::logSURLikelihood(data.cols(blockIdx[k+1]), data.cols(tmpPredictorIdx), gamma_init[k], a_r_0, b_r_0, W_0[k], 1.);
+		logLik_state[k](0) = Model::logSURLikelihood(data, outcomesIdx[k], 
+                  fixedPredictorsIdx[k], vsPredictorsIdx[k], XtX[k], 
+                  gamma_init[k], a_r_0, b_r_0, W_0[k], 1.);
 
 		for(unsigned int m=1; m<nChains ; ++m)
 		{
@@ -198,6 +296,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 		}
 	}
 
+	
 	// # Define temperture ladder
 	double maxTemperature = arma::min(a_0[0]) - 2.; // due to the tempered gibbs moves
 	arma::vec temperatureRatio(nEquations); temperatureRatio.fill(2.); // std::max( 100., (double)n );
@@ -209,7 +308,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
   	temperature[k](0) = 1.;
   
   	for(unsigned int m=1; m<nChains; ++m)
-  		temperature[k](m) = std::min( maxTemperature, temperature[k](m-1)*temperatureRatio[k] );
+  		temperature[k](m) = std::min( maxTemperature, temperature[k](m-1) * temperatureRatio[k] );
 	}
 
 	for( unsigned int k=0; k<nEquations; ++k)
@@ -236,36 +335,49 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	parCrossOver(3) = p11;	parCrossOver(4) = p12;	parCrossOver(5) = p21;	parCrossOver(6) = p22;
 
 	// NON-BANDIT related things
-	unsigned int nUpdates = p/10; //arbitrary nunmber, should I use something different?
+	unsigned int nUpdates = arma::mean(nPredictors)/10; //arbitrary nunmber, should I use something different?
 
 	// BANDIT ONLY SECTION
-	// arma::cube alpha_z;	arma::cube beta_z;	arma::cube zeta; std::vector<arma::vec> mismatch;
-	// std::vector<arma::vec> normalised_mismatch; std::vector<arma::vec> normalised_mismatch_backwards;
+	
+	std::vector<arma::cube> alpha_z(nEquations);	
+	std::vector<arma::cube> beta_z(nEquations);
+	std::vector<arma::cube> zeta(nEquations); 
+	
+	std::vector<arma::field<arma::vec>> mismatch(nEquations); 
+	std::vector<arma::field<arma::vec>> normalised_mismatch(nEquations); 
+	std::vector<arma::field<arma::vec>> normalised_mismatch_backwards(nEquations);
 
-	// if( method == 1)
-	// {
-	// 	nUpdates = 4; // for Bandit this must be SMALL (as it scales with nUpdates! and has a different meaning anyway)
+	if( method == 1)
+	{
+		nUpdates = 4; // for Bandit this must be SMALL (as it scales with nUpdates! and has a different meaning anyway)
 
-	// 	// Starting vaues for the Bandit tuning parameters
-	// 	// stating proposals are beta( 0.5 , 0.5 ) so that they're centered in 0.5 with spikes at the extremes
-	// 	// ALL OF THESE NEED TO HAVE A COPY FOR EACH CHAIN AND BLOCK!! HUGE :/
-	// 	alpha_z = arma::cube(p,s,nChains); alpha_z.fill(0.5);
-	// 	beta_z = arma::cube (p,s,nChains); beta_z.fill(0.5);
-
-	// 	// these do not, as they will be overwritten anyway, but a copy helps in avoiding parallel access and/or OMP overhead in creating privates
-	// 	zeta = arma::cube(p,s,nChains);
-	// 	mismatch = std::vector<arma::vec>(nChains);
-	// 	normalised_mismatch = std::vector<arma::vec>(nChains);
-	// 	normalised_mismatch_backwards = std::vector<arma::vec>(nChains);
-	// 	for(unsigned int i = 0; i<nChains; ++i)
-	// 	{
-	// 		mismatch[i] = arma::vec(p*s);
-	// 		normalised_mismatch[i] = arma::vec(p*s);
-	// 		normalised_mismatch_backwards[i] = arma::vec(p*s);
-	// 	}
-	// 	// I still wonder why .slice() is an instance of arma::mat and return a reference to it
-	// 	// while .col() is a subview and has hald the method associated with a Col object ...
-	// }
+		// Starting vaues for the Bandit tuning parameters
+		// stating proposals are beta( 0.5 , 0.5 ) so that they're centered in 0.5 with spikes at the extremes
+		// ALL OF THESE NEED TO HAVE A COPY FOR EACH CHAIN AND BLOCK!! HUGE :/
+		for( unsigned int k=0; k<nEquations; ++k)
+		{
+		  
+  		alpha_z[k] = arma::cube( nVSPredictors(k), nOutcomes(k), nChains); //vs predictors only!
+		  alpha_z[k].fill(0.5);
+		  
+  		beta_z[k] = arma::cube( nVSPredictors(k), nOutcomes(k), nChains); 
+  		beta_z[k].fill(0.5);
+  
+  		// these do not, as they will be overwritten anyway, but a copy helps in avoiding parallel access and/or OMP overhead in creating privates
+  		zeta[k] = arma::cube( nVSPredictors(k), nOutcomes(k), nChains);
+  		mismatch[k] = arma::field<arma::vec>(nChains);
+  		normalised_mismatch[k] = arma::field<arma::vec>(nChains);
+  		normalised_mismatch_backwards[k] = arma::field<arma::vec>(nChains);
+  		
+  		for(unsigned int i = 0; i<nChains; ++i)
+  		{
+  			mismatch[k](i) = arma::vec( nVSPredictors(k) * nOutcomes(k));
+  			normalised_mismatch[k](i) = arma::vec( nVSPredictors(k) * nOutcomes(k));
+  			normalised_mismatch_backwards[k](i) = arma::vec( nVSPredictors(k) * nOutcomes(k));
+  		}
+  		
+		}
+	}
 	// END Bandit only section
 
 	// ###########################################################
@@ -273,14 +385,6 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	// ## Init Files
 	// ###########################################################
 	// ###########################################################
-
-	// //check if provided out dir exists and create it otherwise
-	// boost::filesystem::path path(outFilePath);
-	// if ( !boost::filesystem::exists(path) || !boost::filesystem::is_directory(path) )
-	// {
-	// 	std::cout << path << " does not exist, creating...\n";
-	// 	boost::filesystem::create_directory(path);
-	// }
 
 	// Open up out files
 
@@ -334,9 +438,11 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	for(unsigned int iteration=1; iteration < nIter ; ++iteration)
 	{
 
-		Model::SEM_MCMC_step(data,blockIdx, 
-					omega_state, gamma_state, logPrior_state, logLik_state,
-					a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp, nUpdates, temperature, 0, // method forced to zero now, TODO
+		Model::SEM_MCMC_step(data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx,
+					omega_state, gamma_state, logPrior_state, logLik_state, XtX,
+					a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp, nUpdates, temperature,
+					zeta, alpha_z, beta_z, mismatch, normalised_mismatch, normalised_mismatch_backwards,
+					0, // method forced to zero now, TODO
 					parCrossOver, covariatesCorrelation, nGlobalUpdates, countGlobalUpdates, accCountGlobalUpdates,
 					maxTemperature, temperatureRatio, deltaTempRatio); 
 
@@ -351,13 +457,23 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 			for( unsigned int k=0; k<nEquations; ++k)
 				accCount(k) = accCount_tmp(k,0)/nUpdates;
 
-			std::cout << " Running iteration " << iteration+1 << " ... loc.acc.rate ~ " << accCount.t()/(double)iteration /*<< std::endl*/ ; 
-			// no need for extra endl as accCount.t() finishes with '\n'
-
-			// TODO FIGURE OUT HOW TO REPORT THESE
-			// if( nChains > 1 )
-			// 	std::cout << " global.acc.rate ~ " << accCountGlobalUpdates / (double)countGlobalUpdates;
-			// std::cout << /*"  ~~  " << temperature.t() << */ std::endl;
+			std::cout << " Running iteration " << iteration+1 << " .. acc.rate ~ ";
+      
+      for( unsigned int k=0; k<nEquations; ++k)
+      {
+        std::cout << std::round( 1000.0 * accCount(k)/(double)iteration ) / 1000.0 << " "; 
+      }
+      
+			if( nChains > 1 )
+			{
+			  std::cout << " || " ;
+			  for( unsigned int k=0; k<nEquations; ++k)
+			  {
+			    std::cout << std::round( 1000.0 * accCountGlobalUpdates[k] / (double)countGlobalUpdates[k] ) / 1000.0  << " ";
+		  }}
+			// std::cout << "  ~~  " << temperature.t();
+			std::cout << std::endl;
+			
 		}
 
 		// Output to files every now and then
@@ -374,7 +490,7 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 	} // end MCMC
 
 
-	std::cout << " MCMC ends. Final temperature ratio ~ " << temperatureRatio << "   --- Saving results and exiting" << std::endl;
+	std::cout << " MCMC ends. Final temperature ratio ~ " << temperatureRatio.t() << "   --- Saving results and exiting" << std::endl;
 
 	// Output to files one last time
 	for( unsigned int k=0; k<nEquations; ++k)
@@ -383,7 +499,6 @@ int run_HESS(std::string inFile, std::string outFilePath, unsigned int nIter, un
 		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)nIter+1.0) << std::flush;
 		gammaOutFile.close();
 	}
-
 
 	// Exit
 	return 0;

@@ -4,17 +4,21 @@
 \alias{rHESS_SEM}
 \title{rHESS_SEM}
 \usage{
-rHESS_SEM(inFile, blocks = NULL, varType = NULL, outFilePath = "", nIter,
-  nChains = 1, seed = 0, method = 0)
+rHESS_SEM(inFile, blockList, varType = NULL, SEMGraph, outFilePath = "",
+  autoAddIntercept = TRUE, nIter, nChains = 1, seed = 0, method = 0)
 }
 \arguments{
 \item{inFile}{path to data file}
 
-\item{blocks}{list of blocks in the model}
+\item{blockList}{list of blocks in the model}
 
 \item{varType}{variable type for each column in the data file}
 
+\item{SEMGraph}{graph adjacency matrix representing the SEM structure between the blocks}
+
 \item{outFilePath}{path to where the output is to be written}
+
+\item{autoAddIntercept}{should the c++ code automatically add an intercept to every equation?}
 
 \item{nIter}{number of iterations}
 
@@ -26,13 +30,27 @@ rHESS_SEM(inFile, blocks = NULL, varType = NULL, outFilePath = "", nIter,
 }
 \description{
 Run a simple SEM Bayesian sampler
-IMPORTANT NOTE: outFilePath must exists, otherwise no output is going to be written.
-You can make sure of its existence by using base::dir.create(outFilePath) from R
 }
 \details{
 rBSEM -- Bayesian Structural Equation Models Regression
 }
 \examples{
-rHESS_SEM(inFile="tmp/sem_data.txt",outFilePath="tmp/",nIter=200)
+require(utils)
+dir.create("tmp")
+data(sample_SEM)
+write.table(sample_SEM,"tmp/sem_data.txt",row.names = FALSE,col.names = FALSE)
+blockL = list( 
+  c(9:28),  ## x0 -- block 0
+  c(1:5),  ## y1 -- block 1
+  c(6:8)  ## y2 -- block 2
+)
+G = matrix(c( 
+  0,1,1,
+  0,0,1,
+  0,0,0 ), 
+  byrow=TRUE,ncol=3,nrow=3)
+  rBSEM::rHESS_SEM(inFile="tmp/sem_data.txt",blockList = blockL,
+                   SEMGraph = G,outFilePath="tmp/",nIter=50,method = 0,nChains = 2)
+unlink("tmp", recursive=TRUE)
 
 }

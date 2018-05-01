@@ -30,21 +30,19 @@ namespace Model
 		return logP;
 	}
 
-	double logSURLikelihood(const arma::mat&Y, const arma::mat &X, const arma::umat &gamma, 
-						 const double a_r_0, const double b_r_0, const arma::mat &W_0, double temp)
+	double logSURLikelihood(const arma::mat& data, const arma::uvec& outcomesIdx,
+       const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx, const arma::mat& XtX,
+       const arma::umat &gamma, const double a_r_0, const double b_r_0, const arma::mat &W_0, double temp)
 	{
-		unsigned int n = Y.n_rows;
-		unsigned int p = gamma.n_rows;
-		unsigned int s = Y.n_cols;
+		unsigned int n = data.n_rows;
+		unsigned int s = outcomesIdx.n_elem;
 
 		arma::uvec VS_IN;  // Variable Selection -- IN variables
+		arma::uvec xVS_IN;  // Variable Selection -- IN variables AMONG THE Xs
 
 		// std::cout << gamma.t() << find(gamma != 0).t() << (find(gamma != 0)+1).t() << VS_IN.t() << std::endl<< std::endl;
 
 		// define variables
-		arma::mat X_gamma;
-		arma::mat XtX;
-		// arma::vec hat_B;
 		arma::mat W_n;
 		arma::vec tilde_B;
 		double a_r_n, b_r_n;
@@ -56,27 +54,36 @@ namespace Model
 
 		logP = -log(M_PI)*((double)n*(double)s*0.5); // initialise with the normalising constant remaining from the likelhood
 
-		for(unsigned int l=0; l<s; ++l)
+		for(unsigned int l=0; l<s; ++l) // for each univaraite outcome ..
 		{
 
-			VS_IN = find(gamma.col(l) != 0)+1; VS_IN.insert_rows(0,1); // note that insert_rows works by inserting 1 row in position 0, and set it to zero since I'm passing an int and not a type arma::uvec(1)!!
-
-			X_gamma = X.cols(VS_IN);				// predictors for the l^th outcome
-			XtX = arma::trans(X_gamma) * X_gamma;
-
-			// hat_B = arma::inv_sympd(XtX) * X_gamma.t() * Y.col(l);
-			W_n = arma::inv_sympd( XtX + arma::inv_sympd( W_0(VS_IN,VS_IN) ) );
-			tilde_B = W_n * ( X_gamma.t()*Y.col(l)  /* + W_0.i() * ZERO  */ );
+		  
+	 //  std::cout << "A" << std::endl;
+	 //  std::cout << "F " << std::endl << fixedPredictorsIdx.t() << std::endl <<
+	 //    " VS " << std::endl << vsPredictorsIdx( find(gamma.col(l) != 0) ).t() << std::endl << 
+	 //    " gamma " << std::endl << gamma.col(l).t() << std::endl;
+	 // std::cout << "all " << std::endl <<
+	 //   arma::join_vert( fixedPredictorsIdx , vsPredictorsIdx( find(gamma.col(l) != 0) ) ).t() << std::endl;
+	    
+			VS_IN = arma::join_vert( fixedPredictorsIdx , vsPredictorsIdx( find(gamma.col(l) != 0) ) );
+	  
+	  
+      xVS_IN = arma::join_vert( arma::regspace<arma::uvec>(0,fixedPredictorsIdx.n_elem-1) ,  // the fixed part
+                                fixedPredictorsIdx.n_elem + find(gamma.col(l) != 0) );  // the VS part
+		  
+			// hat_B = arma::inv_sympd(XtX) * arma::trans(X.cols(VS_IN)) * Y.col(l);
+			W_n = arma::inv_sympd( XtX(xVS_IN,xVS_IN) + arma::inv_sympd( W_0(xVS_IN,xVS_IN) ) );
+			tilde_B = W_n * ( arma::trans( data.cols(VS_IN) ) * data.col(outcomesIdx(l))  /* + W_0.i() * ZERO  */ );
 
 			a_r_n = a_r_0 + 0.5*(double)n;
-
-			b_r_n = b_r_0 + 0.5* arma::as_scalar( Y.col(l).t() * Y.col(l) - ( tilde_B.t() * arma::inv_sympd(W_n) * tilde_B ) );
+			b_r_n = b_r_0 + 0.5* arma::as_scalar( arma::trans(data.col(outcomesIdx(l))) * data.col(outcomesIdx(l)) - 
+			  ( tilde_B.t() * arma::inv_sympd(W_n) * tilde_B ) );
 
 			arma::log_det(tmp, sign, W_n );
 			logP += 0.5*tmp; 
 
-			arma::log_det(tmp, sign, W_0(VS_IN,VS_IN) );
-			logP += -0.5*tmp; 
+			arma::log_det(tmp, sign, W_0(xVS_IN,xVS_IN) );
+			logP -= 0.5*tmp; 
 
 			logP += a_r_0*log(b_r_0) - a_r_n*log(b_r_n);
 
@@ -87,14 +94,15 @@ namespace Model
 
 	}
 
-	void banditProposal
-	(
-	arma::umat &gamma, arma::mat &zeta, arma::umat &gamma_prop, arma::mat& alpha_z, arma::mat& beta_z,
-	arma::vec& mismatch, arma::vec& normalised_mismatch, arma::vec& normalised_mismatch_backwards,
-	const arma::mat&Y, const arma::mat &X, arma::mat& omega_curr, double& logPrior_curr, double &logLik_curr,
-	const double a_r_0, const double b_r_0, const arma::mat& W_0, const arma::vec& a_0, const arma::vec& b_0,
-	double& accCount, unsigned int nUpdates, double temp
-	)
+
+
+  void banditProposal(arma::umat &gamma, arma::mat &zeta, arma::umat &gamma_prop, arma::mat& alpha_z, arma::mat& beta_z,
+      	arma::vec& mismatch, arma::vec& normalised_mismatch, arma::vec& normalised_mismatch_backwards,
+      	const arma::mat& data, const arma::uvec& outcomesIdx,
+      	const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx, arma::mat& XtX,
+      	arma::mat& omega_curr, double& logPrior_curr, double &logLik_curr,
+      	const double a_r_0, const double b_r_0, const arma::mat& W_0, const arma::vec& a_0, const arma::vec& b_0,
+      	double& accCount, unsigned int nUpdates, double temp)
 	{
 
 		unsigned int p = gamma.n_rows;
@@ -151,10 +159,10 @@ namespace Model
 
 		}else{
 
-			/*
-			L(nUpdates) random (bern) updates
-			Note that we make use of column indexing here for armadillo matrices
-			*/
+			
+			// L(nUpdates) random (bern) updates
+			// Note that we make use of column indexing here for armadillo matrices
+			
 
 			log_proposal = 0.;
 			// Decide which to update
@@ -187,14 +195,16 @@ namespace Model
 
 		// A/R step
 
-		double logLik_prop = logSURLikelihood(Y,X, gamma_prop, a_r_0, b_r_0, W_0, temp);
+		double logLik_prop = logSURLikelihood(data,outcomesIdx,fixedPredictorsIdx,vsPredictorsIdx,XtX,
+                                 gamma_prop, a_r_0, b_r_0, W_0, temp);
+		
 		double logPrior_prop = logSURPrior(omega_curr, gamma, a_0, b_0);
 
 		double logAccProb = (logLik_prop - logLik_curr) + (logPrior_prop - logPrior_curr) + log_proposal;
 
 		if( Distributions::randLogU01() < logAccProb )
 		{
-			accCount += update_idx.n_elem;/*/(double)nUpdates*/;
+			accCount += update_idx.n_elem; // /(double)nUpdates;
 			gamma = gamma_prop;
 			logLik_curr = logLik_prop;
 			logPrior_curr = logPrior_prop;
@@ -214,7 +224,10 @@ namespace Model
 	}
 
 
-	void bandit_SUR_MCMC_step(const arma::mat&Y, const arma::mat &X, arma::mat& omega_curr, arma::umat& gamma_curr, double& logPrior_curr, double &logLik_curr, 
+	void bandit_SUR_MCMC_step(const arma::mat& data, const arma::uvec& outcomesIdx,
+           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
+           arma::mat& omega_curr, arma::umat& gamma_curr, 
+           double& logPrior_curr, double &logLik_curr, arma::mat& XtX, 
 					const double a_r_0, const double b_r_0, const arma::mat& W_0, 
 					const arma::vec& a_0, const arma::vec& b_0, double& accCount, unsigned int nUpdates, double temp,
 					arma::mat& zeta, arma::mat& alpha_z, arma::mat& beta_z, arma::vec& mismatch,
@@ -227,9 +240,9 @@ namespace Model
 
 		// unsigned int n = Y.n_rows;
 		unsigned int p = gamma_curr.n_rows;
-		unsigned int s = Y.n_cols;
+		unsigned int s = gamma_curr.n_cols;
 		arma::imat predUpdate;       // which predictor are we updating?
-		arma::uword /*arma::ivec*/ outUpdate; 		 // which outcome?
+		arma::uword outUpdate; 		 // which outcome?
 		
 		double logPrior_prop, logLik_prop;
 		double logAccProb;
@@ -249,38 +262,44 @@ namespace Model
 				omega_curr(j,k) = Distributions::randBeta( (a+1.)/temp - 1. , b/temp );
 			}
 		}
-		
+	
 		// Update the prior
 		logPrior_curr = logSURPrior(omega_curr, gamma_curr, a_0, b_0); // update the prior probability
-
 
 		// ## Update Gamma -- Local move
 		banditProposal(gamma_curr, zeta, gamma_prop, alpha_z, beta_z,
 				mismatch, normalised_mismatch, normalised_mismatch_backwards,
-				Y, X, omega_curr, logPrior_curr, logLik_curr, a_r_0, b_r_0, W_0, a_0, b_0,
+				data,outcomesIdx,fixedPredictorsIdx,vsPredictorsIdx,XtX,
+				omega_curr, logPrior_curr, logLik_curr, a_r_0, b_r_0, W_0, a_0, b_0,
 				accCount, nUpdates, temp);
 
 	}
 
-	void MC3_SUR_MCMC_step(const arma::mat&Y, const arma::mat &X, arma::mat& omega_curr, arma::umat& gamma_curr, double& logPrior_curr, double &logLik_curr, 
+  //const arma::mat&Y, const arma::mat &X, 
+	void MC3_SUR_MCMC_step(const arma::mat& data, const arma::uvec& outcomesIdx,
+          const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
+	        arma::mat& omega_curr, arma::umat& gamma_curr, 
+	        double& logPrior_curr, double &logLik_curr, arma::mat& XtX, 
 					const double a_r_0, const double b_r_0, const arma::mat& W_0, 
 					const arma::vec& a_0, const arma::vec& b_0, double& accCount, unsigned int nUpdates, double temp)
 	{
 		
 		// Initialise proposal
 		// arma::mat omega_prop;
-		arma::umat gamma_prop = gamma_curr;
+		arma::umat gamma_prop(arma::size(gamma_curr));
 
 		// unsigned int n = Y.n_rows;
-		unsigned int p = gamma_curr.n_rows;
-		unsigned int s = Y.n_cols;
+		unsigned int p = gamma_curr.n_rows;   // note that p now is just the nmber of vsPredictors essentially, not of the whole set
+		unsigned int s = outcomesIdx.n_elem;
 		arma::imat predUpdate;       // which predictor are we updating?
-		arma::uword /*arma::ivec*/ outUpdate; 		 // which outcome?
+		arma::uword outUpdate; 		 // which outcome?
 		
-		double logPrior_prop, logLik_prop;
+		double logLik_prop;
+		// double logPrior_prop;
 		double logAccProb;
 
-		predUpdate = arma::join_rows( Distributions::randIntUniform(nUpdates, 0,p-1) , Distributions::randIntUniform(nUpdates,0,s-1) );    // note that I might be updating multiple times the same coeff
+		// not needed, I update ALL the omegas via gibbs
+		// predUpdate = arma::join_rows( Distributions::randIntUniform(nUpdates, 0,p-1) , Distributions::randIntUniform(nUpdates,0,s-1) );    // note that I might be updating multiple times the same coeff
 		
 		double a,b;
 
@@ -298,7 +317,8 @@ namespace Model
 		
 		// Update the prior
 		logPrior_curr = logSURPrior(omega_curr, gamma_curr, a_0, b_0); // update the prior probability
-
+    // likelihood unchanged
+    
 
 		// ## Update Gamma -- Local move
 		predUpdate = Distributions::randIntUniform(nUpdates,0,p-1);    // note that I might be updating multiple times the same coeff
@@ -316,7 +336,8 @@ namespace Model
 			if( gamma_prop(predUpdate(j),outUpdate) != gamma_curr(predUpdate(j),outUpdate) )
 			{
 				// Compute log Probability for the current point
-				logLik_prop = logSURLikelihood(Y,X, gamma_prop, a_r_0, b_r_0, W_0, temp);
+				logLik_prop = logSURLikelihood(data,outcomesIdx,fixedPredictorsIdx,vsPredictorsIdx,XtX,
+                                   gamma_prop, a_r_0, b_r_0, W_0, temp);
 
 				// A/R   
 				logAccProb = (logLik_prop - logLik_curr);
@@ -570,17 +591,21 @@ namespace Model
 
 	} //end ALL Exchange
 
-	void uniformCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
-						arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
-						const double a_r_0, const double b_r_0, const arma::mat& W_0,
-						const arma::vec& a_0, const arma::vec& b_0,const arma::mat& Y,const arma::mat& X,	// Prior pars, data
-						const arma::vec& temperature, const unsigned int nChains, const unsigned int nGlobalUpdates, // hyper tuning pars
-						double& accCountGlobalUpdates, unsigned int& countGlobalUpdates)
+
+void uniformCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
+                           arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
+                           const arma::mat& data, const arma::uvec& outcomesIdx,
+                           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
+                           const arma::mat& XtX,  // data
+                           const double a_r_0, const double b_r_0, const arma::mat& W_0,
+                           const arma::vec& a_0, const arma::vec& b_0,	// Prior pars
+                           const arma::vec& temperature, const unsigned int nChains, const unsigned int nGlobalUpdates, // hyper tuning pars
+                           double& accCountGlobalUpdates, unsigned int& countGlobalUpdates)
 	{
 
 
-		unsigned int p = X.n_cols-1; // there's the intercept
-		unsigned int s = Y.n_cols;
+		unsigned int p = vsPredictorsIdx.n_elem; 
+		unsigned int s = gamma_state.slice(0).n_cols;
 
 		double pCrossOver;
 
@@ -637,8 +662,12 @@ namespace Model
 
 		logPriorFirst = logSURPrior(omega_state.slice(firstChain), gammaXO.slice(0), a_0, b_0);
 		logPriorSecond = logSURPrior(omega_state.slice(secondChain), gammaXO.slice(1), a_0, b_0);
-		logLikFirst = logSURLikelihood(Y, X, gammaXO.slice(0), a_r_0, b_r_0, W_0, temperature(firstChain));
-		logLikSecond = logSURLikelihood(Y, X, gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
+		
+		logLikFirst = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
+                     gammaXO.slice(0), a_r_0, b_r_0, W_0, temperature(firstChain));
+		
+		logLikSecond = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
+		                  gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
 
 		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) - 
 						(	logPriorSecond + logLikSecond - logPrior_state(secondChain) - logLik_state(secondChain) );
@@ -662,17 +691,20 @@ namespace Model
 	}
 
 
-	void blockCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
-						arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
-						const double a_r_0, const double b_r_0, const arma::mat& W_0,
-						const arma::vec& a_0, const arma::vec& b_0,const arma::mat& Y,const arma::mat& X,
-						const arma::mat& covariatesCorrelation, const arma::vec& temperature,	// Prior pars, data
-						const double threshold, const unsigned int nChains, const unsigned int nGlobalUpdates,		// hyper tuning pars
-						double& accCountGlobalUpdates, unsigned int& countGlobalUpdates)
+void blockCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
+           arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
+           const arma::mat& data, const arma::uvec& outcomesIdx,
+           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
+           const arma::mat& XtX,  // data
+           const double a_r_0, const double b_r_0, const arma::mat& W_0,
+           const arma::vec& a_0, const arma::vec& b_0,
+           const arma::mat& covariatesCorrelation, const arma::vec& temperature,	// Prior pars, data
+           const double threshold, const unsigned int nChains, const unsigned int nGlobalUpdates,		// hyper tuning pars
+           double& accCountGlobalUpdates, unsigned int& countGlobalUpdates)
 	{
 
-		unsigned int p = X.n_cols-1; // there's the intercept
-		unsigned int s = Y.n_cols;
+		unsigned int p = gamma_state.n_rows; // there's the intercept
+		unsigned int s = gamma_state.n_cols;
 
 		double pCrossOver;
 
@@ -709,9 +741,8 @@ namespace Model
 		unsigned int predIdx = Distributions::randIntUniform(0, p-1 ); // pred
 		unsigned int outcIdx = Distributions::randIntUniform(0, s-1 ); // outcome
 
-
 		arma::uvec covIdx = arma::find( arma::abs( covariatesCorrelation.row(predIdx) ) > threshold );  // this will include the original predIdx
-
+		
 		gammaXO.slice(0) = gamma_state.slice(firstChain);
 		gammaXO.slice(1) = gamma_state.slice(secondChain);
 
@@ -727,11 +758,16 @@ namespace Model
 			omegaXO(covIdx(j),outcIdx,1) = omega_state(covIdx(j),outcIdx,firstChain);
 
 		}
+		
 		// Probability of acceptance
 		logPriorFirst = logSURPrior(omega_state.slice(firstChain), gammaXO.slice(0), a_0, b_0);
 		logPriorSecond = logSURPrior(omega_state.slice(secondChain), gammaXO.slice(1), a_0, b_0);
-		logLikFirst = logSURLikelihood(Y, X, gammaXO.slice(0), a_r_0, b_r_0, W_0, temperature(firstChain));
-		logLikSecond = logSURLikelihood(Y, X, gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
+		
+		logLikFirst = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
+                                 gammaXO.slice(0), a_r_0, b_r_0, W_0, temperature(firstChain));
+		
+		logLikSecond = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
+                                 gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
 
 		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) - 
 						(	logPriorSecond + logLikSecond - logPrior_state(secondChain) - logLik_state(secondChain) );
@@ -754,18 +790,22 @@ namespace Model
 		} // end CrossOver
 	}
 
-	void adapCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state, 
-						arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
-						const double a_r_0, const double b_r_0, const arma::mat& W_0,
-						const arma::vec& a_0, const arma::vec& b_0,const arma::mat& Y,const arma::mat& X,	// Prior pars, data
-						const arma::vec& temperature, double pXO_0, double pXO_1, double pXO_2,
-						double p11, double p12, double p21, double p22,									// tuning pars
-						const unsigned int nChains, const unsigned int nGlobalUpdates,					// hyper tuning pars
-						double& accCountGlobalUpdates, unsigned int& countGlobalUpdates) 
+ 
+void adapCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
+                        arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
+                        const arma::mat& data, const arma::uvec& outcomesIdx,
+                        const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
+                        const arma::mat& XtX,  // data
+                        const double a_r_0, const double b_r_0, const arma::mat& W_0,
+                        const arma::vec& a_0, const arma::vec& b_0,	// Prior pars
+                        const arma::vec& temperature, double pXO_0, double pXO_1, double pXO_2,
+                        double p11, double p12, double p21, double p22,									// tuning pars
+                        const unsigned int nChains, const unsigned int nGlobalUpdates,					// hyper tuning pars
+                        double& accCountGlobalUpdates, unsigned int& countGlobalUpdates)
 	{
 
 		unsigned int p = gamma_state.n_rows;
-		unsigned int s = Y.n_cols;
+		unsigned int s = gamma_state.n_cols;
 
 		double pCrossOver;
 		unsigned int n11,n12,n21,n22;
@@ -835,8 +875,11 @@ namespace Model
 
 		logPriorFirst = logSURPrior(omega_state.slice(firstChain), gammaXO.slice(0), a_0, b_0);
 		logPriorSecond = logSURPrior(omega_state.slice(secondChain), gammaXO.slice(1), a_0, b_0);
-		logLikFirst = logSURLikelihood(Y, X, gammaXO.slice(0), a_r_0, b_r_0, W_0, temperature(firstChain));
-		logLikSecond = logSURLikelihood(Y, X, gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
+		
+		logLikFirst = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
+                                 gammaXO.slice(0), a_r_0, b_r_0, W_0, temperature(firstChain));
+		logLikSecond = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
+                                  gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
 
 		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) - 
 						(	logPriorSecond + logLikSecond - logPrior_state(secondChain) - logLik_state(secondChain) );
@@ -865,13 +908,15 @@ namespace Model
 	} // end CrossOver
 
 
-void MCMC_Global_step(const arma::mat&Y, const arma::mat &X, unsigned int thisBlockIdx,
+void MCMC_Global_step(const arma::mat& data, const arma::uvec& outcomesIdx,
+                      const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
+                      unsigned int thisBlockIdx,
                       arma::cube& omega_state, arma::ucube& gamma_state, 
-                      arma::vec& logPrior_state, arma::vec& logLik_state, 
+                      arma::vec& logPrior_state, arma::vec& logLik_state,  arma::mat& XtX,
                       const double a_r_0, const double b_r_0, const arma::mat& W_0, 
                       const arma::vec& a_0, const arma::vec& b_0, 
-                      const arma::vec& pCrossOver, const std::vector<arma::mat>& covariatesCorrelation, // tuning pars
-                      const unsigned int nChains, const unsigned int nGlobalUpdates,					// hyper tuning pars
+                      const arma::vec& pCrossOver, const arma::mat& covariatesCorrelation, // tuning pars
+                      const unsigned int nChains, const unsigned int nGlobalUpdates,					          // hyper tuning pars
                       double& accCountGlobalUpdates, unsigned int& countGlobalUpdates,
                       const arma::vec& temperature)
 {
@@ -891,7 +936,7 @@ void MCMC_Global_step(const arma::mat&Y, const arma::mat &X, unsigned int thisBl
     // # Global move
     // Select the type of exchange/crossOver to apply
     
-    globalType = Distributions::randIntUniform(0,6);
+    globalType = Distributions::randIntUniform(0,3);  // the crossovers are polluting the output, TODO
     
     switch(globalType){
     
@@ -914,23 +959,27 @@ void MCMC_Global_step(const arma::mat&Y, const arma::mat &X, unsigned int thisBl
       break;
       
       // -- CrossOver
-    case 4: Model::adapCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-                                      a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature, 
-                                      pXO_0, pXO_1, pXO_2, p11, p12, p21, p22,
-                                      nChains, nGlobalUpdates,
-                                      accCountGlobalUpdates, countGlobalUpdates);
+    case 4: Model::uniformCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
+                                 data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, XtX,
+                                 a_r_0, b_r_0, W_0, a_0, b_0, temperature,
+                                 nChains, nGlobalUpdates,
+                                 accCountGlobalUpdates, countGlobalUpdates);
       break;
       
-    case 5: Model::uniformCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-                                         a_r_0, b_r_0, W_0, a_0, b_0, Y, X, temperature,
-                                         nChains, nGlobalUpdates,
-                                         accCountGlobalUpdates, countGlobalUpdates);
+   case 5: Model::adapCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
+                                 data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, XtX,
+                                 a_r_0, b_r_0, W_0, a_0, b_0, temperature, 
+                                 pXO_0, pXO_1, pXO_2, p11, p12, p21, p22,
+                                 nChains, nGlobalUpdates,
+                                 accCountGlobalUpdates, countGlobalUpdates);
       break;
+      
       
     case 6: Model::blockCrossOver_step(gamma_state, omega_state, logPrior_state, logLik_state,
-                                       a_r_0, b_r_0, W_0, a_0, b_0, Y, X, covariatesCorrelation[thisBlockIdx], temperature, 0.25,
-                                       nChains, nGlobalUpdates,
-                                       accCountGlobalUpdates, countGlobalUpdates);
+                               data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, XtX,
+                               a_r_0, b_r_0, W_0, a_0, b_0, covariatesCorrelation, temperature, 0.25,
+                               nChains, nGlobalUpdates,
+                               accCountGlobalUpdates, countGlobalUpdates);
       break;
     }
     
@@ -939,12 +988,18 @@ void MCMC_Global_step(const arma::mat&Y, const arma::mat &X, unsigned int thisBl
 }
 
 
-	void SEM_MCMC_step(const arma::mat& data, std::vector<arma::uvec> blockIdx,
+	void SEM_MCMC_step(const arma::mat& data, const std::vector<arma::uvec>& outcomesIdx,
+          const std::vector<arma::uvec>& fixedPredictorsIdx, const std::vector<arma::uvec>& vsPredictorsIdx,
 					std::vector<arma::cube>& omega_state, std::vector<arma::ucube>& gamma_state, 
-					std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state,
+					std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state, std::vector<arma::mat>& XtX,
 					const double a_r_0, const double b_r_0, const std::vector<arma::mat>& W_0, 
 					const std::vector<arma::vec>& a_0, const std::vector<arma::vec>& b_0,
-					arma::mat& accCount, unsigned int nUpdates, std::vector<arma::vec>& temp, int method,
+					arma::mat& accCount, unsigned int nUpdates, std::vector<arma::vec>& temp, 
+					std::vector<arma::cube>& zeta, std::vector<arma::cube>& alpha_z, 
+					std::vector<arma::cube>& beta_z, std::vector<arma::field<arma::vec>>& mismatch,
+					std::vector<arma::field<arma::vec>>& normalised_mismatch, 
+					std::vector<arma::field<arma::vec>>& normalised_mismatch_backwards,
+					int method,
 					const arma::vec& parCrossOver, const std::vector<arma::mat>& covariatesCorrelation,
 					const unsigned int nGlobalUpdates,
 					std::vector<unsigned int>& countGlobalUpdates, std::vector<double>& accCountGlobalUpdates,
@@ -954,43 +1009,50 @@ void MCMC_Global_step(const arma::mat&Y, const arma::mat &X, unsigned int thisBl
 
 		unsigned int nThreads = omp_get_max_threads();
 	  unsigned int nChains = omega_state[0].n_slices;
-	  unsigned int nBlocks = blockIdx.size();
-	  unsigned int nEquations = nBlocks-1;
+	  unsigned int nEquations = outcomesIdx.size();
 	  
-	  arma::uvec predictorsIdx;
-		// for now only local moves are performed,TODO
-		
 	  for(unsigned int k=0; k < nEquations ; ++k){
 	    
-	    predictorsIdx = blockIdx[0];
-	    for(unsigned int j=1; j<=k; ++j)
-	      predictorsIdx = arma::join_cols(predictorsIdx,blockIdx[j]); // is there a more efficient way to do it? TODO
-	      
-
 	      switch(method){
 	      
 	      case 0:
           #pragma omp parallel for num_threads(nThreads)
 					for(unsigned int m=0; m<nChains ; ++m)
 					{
-							Model::MC3_SUR_MCMC_step(data.cols( blockIdx[k+1] ),data.cols( predictorsIdx ),
+							Model::MC3_SUR_MCMC_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k],
                                        omega_state[k].slice(m),gamma_state[k].slice(m),
-                                       logPrior_state[k](m),logLik_state[k](m),
+                                       logPrior_state[k](m),logLik_state[k](m), XtX[k],
 											                 a_r_0, b_r_0, W_0[k], a_0[k], b_0[k], accCount(k,m), 
 											                 nUpdates, temp[k](m));
-					}// end parallel updates
-          break; // end case 0 -- case 1 is similar but not yet developed
+					} // end parallel updates
+          break; // end case 0 
+	        
+	      case 1:
+          #pragma omp parallel for num_threads(nThreads)
+	        for(unsigned int m=0; m<nChains ; ++m)
+	        {
+              Model::bandit_SUR_MCMC_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k],
+                                  omega_state[k].slice(m),gamma_state[k].slice(m),
+                                  logPrior_state[k](m),logLik_state[k](m), XtX[k],
+                                  a_r_0, b_r_0, W_0[k], a_0[k], b_0[k], 
+                                  accCount(k,m), nUpdates, temp[k](m),
+                                  zeta[k].slice(m), alpha_z[k].slice(m), beta_z[k].slice(m), 
+                                  mismatch[k](m), normalised_mismatch[k](m),
+                                  normalised_mismatch_backwards[k](m));
+          } // end parallel updates
+	        break; // end case 1
 					
 	      }
 	      
 	      // ####################
         // Global moves
+        
         if(nChains>1)
         {
-          Model::MCMC_Global_step(data.cols( blockIdx[k+1] ),data.cols( predictorsIdx ), k,
-                         omega_state[k], gamma_state[k],logPrior_state[k], logLik_state[k],
+          Model::MCMC_Global_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k], k,
+                         omega_state[k], gamma_state[k],logPrior_state[k], logLik_state[k], XtX[k], 
                          a_r_0, b_r_0, W_0[k], a_0[k], b_0[k],
-                         parCrossOver, covariatesCorrelation,
+                         parCrossOver, covariatesCorrelation[k],
                          nChains, nGlobalUpdates,accCountGlobalUpdates[k], countGlobalUpdates[k],
                          temp[k]);
           
@@ -1024,7 +1086,7 @@ void MCMC_Global_step(const arma::mat&Y, const arma::mat &X, unsigned int thisBl
           
           
         } //end Global move's section
-
+        
     } // end block update
 
 	}

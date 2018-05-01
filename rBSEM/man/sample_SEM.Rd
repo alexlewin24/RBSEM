@@ -4,8 +4,7 @@
 \name{sample_SEM}
 \alias{sample_SEM}
 \title{sample synthetic SEM}
-\format{A sampler data frame conforming with the software specs 200 obs and 28 variables 
-+ 2 rows of specific headers}
+\format{A sampler data frame conforming with the software specs 200 obs and 28 variables}
 \usage{
 data(sample_SEM)
 }

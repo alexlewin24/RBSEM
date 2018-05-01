@@ -85,13 +85,14 @@ int main(int argc, char *  argv[])
 			++na; // otherwise augment counter
 		}
 		else
-        {
-          	    std::cout << "Unknown option: " << argv[na] << std::endl;
-          	    return(1); //this is exit if I'm in a function elsewhere
-        }
+    {
+	    std::cout << "Unknown option: " << argv[na] << std::endl;
+	    return(1); //this is exit if I'm in a function elsewhere
+    }
     }//end reading from command line
 
-	int status = run_HESS(inFile, outFilePath, nIter, nChains, seed, method);
+
+	int status= run_HESS(inFile, outFilePath, true, nIter, nChains, seed, method);
 
 	// Exit
 	return status;

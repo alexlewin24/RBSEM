@@ -46,12 +46,13 @@ namespace Utils{
 		return true;
 	}
 
-	bool readDataSEM(std::string fileName, arma::mat &data, arma::ivec &blockIndexes, arma::ivec &variableType,
-		arma::uvec &missingDataIndexes, arma::uvec &nOutcomes, unsigned int &nPredictors, unsigned int &nObservations)
+	bool readDataSEM(std::string fileName, arma::mat &data, arma::ivec &blockIndexes, arma::ivec &varType,
+                  arma::umat SEMGraph, arma::uvec &missingDataIndexes, unsigned int &nObservations,
+                  arma::uvec &nOutcomes, arma::uvec &nPredictors, std::vector<arma::uvec>& SEMEquations)
 	{
 
 		bool status = data.load(fileName,arma::raw_ascii);
-		arma::uvec jnk;
+		arma::uvec tmpUVec, predictorsIdx;
 		arma::ivec uniqueBlockIndexes;
 		
 		if(!status){ 
@@ -59,21 +60,15 @@ namespace Utils{
 			return false;
 		}else{
 
-			// the first row is a row of blockIndexes
-			blockIndexes = arma::conv_to<arma::ivec>::from( data.row(0)/*.t()*/ );
-			data.shed_row(0);
-
-			
 			// checks on the blockIndexes
 			// index 0 stands for the Xs, predictors
 			// index 1+ are the upper-level outcomes
 			// so we always need at least some zeros and some ones
 			uniqueBlockIndexes = arma::unique(blockIndexes);
 			
-			
 			if( arma::max( blockIndexes ) < 1 || uniqueBlockIndexes.n_elem < 2 ) // more indepth check would be length of positive indexes..
 			{
-				std::cout<< "You need to define at least two blocks -- Xs (block 0) and Ys (block 1)"<<std::endl;
+				std::cout<< "You need to define at least two blocks -- Xs and Ys"<<std::endl;
 				return false;
 			}
 
@@ -84,31 +79,51 @@ namespace Utils{
 				shedIdx = arma::as_scalar(arma::find(blockIndexes < 0 , 1 , "first"));
 				data.shed_col( shedIdx );
 				blockIndexes.shed_col( shedIdx ); //shed the blockIdx as well!
+				
+				if(varType.n_elem == data.n_cols)
+				    varType.shed_col( shedIdx ); //shed the varType as well!
 			}
 
-
-			// the second row is a row of variableType
-			variableType = arma::conv_to<arma::ivec>::from( data.row(0)/*.t()*/ );
-			data.shed_row(0);
-			
 			// miscellanea variables
-			nOutcomes = arma::uvec(uniqueBlockIndexes.n_elem); // init this
-
-			for( auto i : uniqueBlockIndexes )
+			arma::uvec outcomeIdx = arma::find( arma::sum(SEMGraph,0)!=0 );
+			unsigned int nEquations = outcomeIdx.n_elem;
+			
+			SEMEquations = std::vector<arma::uvec>(nEquations);
+			
+			nOutcomes = arma::uvec(nEquations); // init this -- note this is nOutcomes FOR EACH Mv REGRESSION! (!= nEquations)
+			nPredictors = arma::uvec(nEquations);
+			
+			for( unsigned int i=0; i<nEquations; ++i )
 			{
-				jnk = arma::find( blockIndexes == i );   // meh, hate this temporary but is needed
-				nOutcomes(i) = jnk.n_elem;
+			  
+        // init this outcome
+				tmpUVec = arma::find( blockIndexes == outcomeIdx(i) );   // groups in the graph are ordered by their position in the blockList
+				nOutcomes(i) = tmpUVec.n_elem;
+				
+				//find its predictors
+				predictorsIdx = arma::find( SEMGraph.col(outcomeIdx(i)) );
+                                  
+        // init the equation
+        SEMEquations[i] = arma::uvec(1+predictorsIdx.n_elem);
+        SEMEquations[i](0) = outcomeIdx(i);
+        SEMEquations[i](arma::span(1,predictorsIdx.n_elem)) = predictorsIdx;
+                                
+        // init nPredictors
+        nPredictors(i) = 0;
+        for(unsigned int j=0; j<predictorsIdx.n_elem; ++j)
+        {
+          tmpUVec = arma::find( blockIndexes == predictorsIdx(j) );
+          nPredictors(i) += tmpUVec.n_elem;  
+        }
+				
 			}
 
-			// first index is the number of predictors
-			nPredictors = nOutcomes(0);
-			nOutcomes.shed_row(0);
-			
 			nObservations = data.n_rows;
 
 			// Now deal with NANs
 			if( data.has_nan() )
 			{
+			  return false; // for now add this guard against NAs
 				missingDataIndexes = arma::find_nonfinite(data);
 				data(missingDataIndexes).fill( arma::datum::nan );  // This makes all the ind values into valid armadillo NANs (should be ok even without, but..)
 			}

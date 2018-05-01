@@ -2,11 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{rHESS_SEM_internal}
 \alias{rHESS_SEM_internal}
-\title{rHESS_SEM}
-\usage{
-rHESS_SEM_internal(inFile, outFilePath, nIter = 10L, nChains = 1L,
-  seed = 0L, method = 0L)
-}
+\title{rHESS_SEM_internal}
 \arguments{
 \item{inFile}{path to data file}
 
@@ -22,14 +18,14 @@ rHESS_SEM_internal(inFile, outFilePath, nIter = 10L, nChains = 1L,
 }
 \description{
 Run a simple SEM Bayesian sampler -- internal function
-IMPORTANT NOTE: outFilePath must exists, otherwise no output is going to be written.
-You can make sure of its existence by using base::dir.create(outFilePath) from R
 }
 \examples{
-dir.create("tmp")
+dir.create("tmp") 
 data(sample_SEM)
 write.table(sample_sem,"tmp/sem_data.txt",row.names = FALSE,col.names = FALSE)
+
+blockList = list(c(1),c(rep(0,ncol(sample_SEM)-1)))
+varType = rep(0,ncol(sample_SEM))
 rHESS_SEM_internal(inFile="tmp/sem_data.txt",outFilePath="tmp/",nIter=200)
 unlink("tmp", recursive=TRUE)
-
 }
