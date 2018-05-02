@@ -643,14 +643,14 @@ void uniformCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
 				if( Distributions::randU01() < 0.5 )
 				{
 					gammaXO(j,l,0) = gamma_state(j,l,firstChain);
-					gammaXO(j,l,1) = 1-gammaXO(j,l,0);
+					gammaXO(j,l,1) = gamma_state(j,l,secondChain); // 1-gammaXO(j,l,0); why did I have this? TODO
 
 					omegaXO(j,l,0) = omega_state(j,l,firstChain);
 					omegaXO(j,l,1) = omega_state(j,l,secondChain);
 
 				}else{
 					gammaXO(j,l,0) = gamma_state(j,l,secondChain);
-					gammaXO(j,l,1) = 1-gammaXO(j,l,0);
+					gammaXO(j,l,1) = gamma_state(j,l,firstChain); // 1-gammaXO(j,l,0); why did I have this? TODO
 
 					omegaXO(j,l,0) = omega_state(j,l,secondChain);
 					omegaXO(j,l,1) = omega_state(j,l,firstChain);
@@ -663,13 +663,13 @@ void uniformCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
 		logPriorFirst = logSURPrior(omega_state.slice(firstChain), gammaXO.slice(0), a_0, b_0);
 		logPriorSecond = logSURPrior(omega_state.slice(secondChain), gammaXO.slice(1), a_0, b_0);
 		
-		logLikFirst = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
+		logLikFirst = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX,
                      gammaXO.slice(0), a_r_0, b_r_0, W_0, temperature(firstChain));
 		
 		logLikSecond = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
 		                  gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
 
-		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) - 
+		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) + 
 						(	logPriorSecond + logLikSecond - logPrior_state(secondChain) - logLik_state(secondChain) );
 
 		pCrossOver += 0.;  // XO prop probability simmetric now
@@ -769,7 +769,7 @@ void blockCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
 		logLikSecond = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
                                  gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
 
-		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) - 
+		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) + 
 						(	logPriorSecond + logLikSecond - logPrior_state(secondChain) - logLik_state(secondChain) );
 
 		pCrossOver += 0.;  // XO prop probability is weird, how do I compute it? Let's say is symmetric as is determnistic and both comes from the same covariatesCorrelation
@@ -858,7 +858,7 @@ void adapCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
 				}
 				else
 				{
-					gammaXO(j,l,0) = gamma_state(j,l,firstChain);
+					gammaXO(j,l,0) = gamma_state(j,l,firstChain); // check correctness TODO
 					gammaXO(j,l,1) = gamma_state(j,l,secondChain);
 
 					gammaXO(j,l,0) = ( Distributions::randU01() < pXO_1 )? 1-gammaXO(j,l,0) : gammaXO(j,l,0);
@@ -881,7 +881,7 @@ void adapCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
 		logLikSecond = logSURLikelihood(data, outcomesIdx , fixedPredictorsIdx, vsPredictorsIdx , XtX ,
                                   gammaXO.slice(1), a_r_0, b_r_0, W_0, temperature(secondChain));
 
-		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) - 
+		pCrossOver = (	logPriorFirst + logLikFirst - logPrior_state(firstChain) - logLik_state(firstChain) ) + 
 						(	logPriorSecond + logLikSecond - logPrior_state(secondChain) - logLik_state(secondChain) );
 
 		pCrossOver += (n11 * log( p11 ) + n12 * log( p12 ) + n21 * log( p21 ) + n22 * log( p22 ) )-  // CrossOver proposal probability FORWARD
@@ -936,7 +936,7 @@ void MCMC_Global_step(const arma::mat& data, const arma::uvec& outcomesIdx,
     // # Global move
     // Select the type of exchange/crossOver to apply
     
-    globalType = Distributions::randIntUniform(0,3);  // the crossovers are polluting the output, TODO
+    globalType = Distributions::randIntUniform(0,6);
     
     switch(globalType){
     

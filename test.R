@@ -39,11 +39,11 @@ load("data/sample_data.RData")
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")
 
-rBSEM::rHESS_SEM(inFile="data/sem_data.txt",blockList = blockL,
-                 SEMGraph = G,outFilePath="data/",nIter=50000,method = 1)
-
 # rBSEM::rHESS_SEM(inFile="data/sem_data.txt",blockList = blockL,
-#                  SEMGraph = G,outFilePath="data/",nIter=2000, nChains = 2)
+#                  SEMGraph = G,outFilePath="data/",nIter=50000,method = 1)
+
+rBSEM::rHESS_SEM(inFile="data/sem_data.txt",blockList = blockL,
+                 SEMGraph = G,outFilePath="data/",nIter=50000, method=1, nChains = 2)
 
 
 ## then check some output
