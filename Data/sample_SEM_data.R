@@ -1,6 +1,7 @@
 library(mvtnorm)
 library(MCMCpack)
 
+na=FALSE
 
 ## Simulate a 2 block SEM
 n = 200
@@ -21,6 +22,8 @@ for(i in 1:(s_2)){
 
 ## Simulate Predictors ...
 RX = riwish(p+5, riwish(p+5, diag(p) ) ); RX = solve(diag(sqrt(diag(RX)))) %*% RX %*% solve(diag(sqrt(diag(RX))))  ## rescaled
+
+RX = diag(p) ## debug to see if in the easiest case we can solve no problems
 
 x = rmvnorm(n,rep(0,p),RX)
 x = cbind(rep(1,n),x)
@@ -51,9 +54,11 @@ y = y + cbind(err_1,err_2)
 data = cbind(y,x[,-1])   # leave out the intercept because is coded inside already
 
 ## Simulate some missing data
-# missing_idx = sample( 1:length(data), 0.05*(n*s) , replace = FALSE ) ##~5% of the data will be deleted
-# missing_data = data[missing_idx] ## save them for later checking
-# data[missing_idx] = NaN
+if(na){
+  missing_idx = sample( 1:length(data), 0.02*(n*s) , replace = FALSE ) ##~5% of the data will be missing at random
+  missing_data = data[missing_idx] ## save them for later checking
+  data[missing_idx] = NaN
+}
 
 # Insert the header
 block_idx = c(rep(1,s_1),rep(2,s_2),rep(0,p))
@@ -78,5 +83,12 @@ G = matrix(c(
 var_types = rep(0,s_1+s_2+p)
 
 ## Write data to file
-# write.table(x=data,file="data/sem_data.txt",na = "NAN",col.names=FALSE,row.names=FALSE)
-# save.image("data/sample_data.RData")
+
+if(na){
+  write.table(x=data,file="data/na_sem_data.txt",na = "NAN",col.names=FALSE,row.names=FALSE)
+  save.image("data/na_sample_data.RData")
+}else{
+  write.table(x=data,file="data/sem_data.txt",na = "NAN",col.names=FALSE,row.names=FALSE)
+  save.image("data/sample_data.RData")
+}
+

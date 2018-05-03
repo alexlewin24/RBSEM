@@ -47,10 +47,12 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	  // add a column to the data matrix
 	  data.insert_cols( data.n_cols , arma::ones<arma::vec>(nObservations) );
 	  
-	  // add its blockLabel
+	  // add its blockLabel and its varType
 	  blockLabel.insert_rows( blockLabel.n_elem , interceptLabel * arma::ones<arma::ivec>(1) );
+	  varType.insert_rows( varType.n_elem , arma::zeros<arma::ivec>(1) );
 	  nBlocks += 1;
 	  
+
 	  // add its corresponding row/column in SEMGraph
 	  SEMGraph.resize( SEMGraph.n_rows+1 , SEMGraph.n_cols+1 ); // grow
 	  SEMGraph.col( SEMGraph.n_cols-1 ).fill(0); //set last col to zero
@@ -77,17 +79,40 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	}
 	std::cout << std::endl;
 	// std::cout << std::endl << SEMGraph << std::endl;
-
+  std::cout << missingDataIndexes.n_elem/(double)nObservations <<"% of missing data.." <<std::flush<<std::endl;
+	
 	// now find the indexes for each block in a more armadillo-interpretable way
 	std::vector<arma::uvec> blockIdx(nBlocks);
 	for( unsigned int k = 0; k<(nBlocks); ++k)
 	{
 		blockIdx[k] = arma::find(blockLabel == k);
 	}
-	
 
-	// XtX covariates only
-	std::vector<arma::mat> XtX(nEquations);
+
+	// Init the missing data array in a more readable way
+	arma::umat missingDataIdxArray;
+	arma::uvec completeCases;
+
+	if( missingDataIndexes.n_elem > 0 )
+	{
+		// create an array of indexes with rows and columns
+		missingDataIdxArray = arma::umat(missingDataIndexes.n_elem,2);
+		for( unsigned int j=0, n=missingDataIndexes.n_elem; j<n; ++j)
+		{
+			missingDataIdxArray(j,1) = std::floor( missingDataIndexes(j) / nObservations ); // this is the corresponding column
+			missingDataIdxArray(j,0) = missingDataIndexes(j) - missingDataIdxArray(j,1) * nObservations; // this is the row
+		}
+		completeCases = Utils::arma_setdiff_idx( arma::regspace<arma::uvec>(0, nObservations-1)   , missingDataIdxArray.col(0) );
+	
+	}else{
+
+		missingDataIdxArray = arma::umat(0,2);
+		completeCases = arma::regspace<arma::uvec>(0, nObservations-1);
+	} 
+
+
+	// XtX covariates only   /// THIS SHOULD BE RE-COMPUTED EVERY TIME I CHANGE IMPUTATION!!!
+	arma::mat XtX;
 	std::vector<arma::mat> covariatesCorrelation(nEquations);
 	
 	std::vector<arma::uvec> outcomesIdx(nEquations);
@@ -105,7 +130,6 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	  // outcomesIdx[k] = arma::uvec(nOutcomes(k));
 	  outcomesIdx[k] = blockIdx[SEMEquations[k](0)];
 	  
-	  
 	  // make up the sets for the predictors
 	  fixedPredictorsIdx[k] = arma::uvec(nPredictors(k)); // init it big
 
@@ -116,9 +140,9 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	  {
 	    if( SEMGraph(SEMEquations[k](j),SEMEquations[k](0)) == 2 )
 	    {
-  	    tmpToAdd = blockIdx[SEMEquations[k](j)];
-  	    fixedPredictorsIdx[k].subvec( left, left + tmpToAdd.n_elem -1 ) = tmpToAdd;
-  	    left += tmpToAdd.n_elem;
+			tmpToAdd = blockIdx[SEMEquations[k](j)];
+			fixedPredictorsIdx[k].subvec( left, left + tmpToAdd.n_elem -1 ) = tmpToAdd;
+			left += tmpToAdd.n_elem;
 	    }
 	  }
 	  fixedPredictorsIdx[k].resize(left); // resize it to correct dimension
@@ -142,22 +166,22 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	  nVSPredictors(k) = left;
 	  
 	  // compute XtX and useful matrix
-	  // note that we need it for all predctors, not just the one on which we VS
-	  XtX[k] = data.cols( arma::join_cols( fixedPredictorsIdx[k], vsPredictorsIdx[k] ) ).t() *
-	           data.cols( arma::join_cols( fixedPredictorsIdx[k], vsPredictorsIdx[k] ) ); // this is needed for crossover for example
+	  // note that we need it for all predictors, not just the one on which we VS
+	  XtX = arma::trans( data.submat( completeCases , arma::join_cols( fixedPredictorsIdx[k], vsPredictorsIdx[k] ) ) ) *
+	           data.submat( completeCases , arma::join_cols( fixedPredictorsIdx[k], vsPredictorsIdx[k] ) ); // this is needed for crossover for example
 	  
 	  // now covariatesCorrelation, but only for the VS predictors
-	  tmpDiag = XtX[k].diag(); 
+	  tmpDiag = XtX.diag(); 
 	  tmpDiag.shed_rows(0,nFIXPredictors(k)-1);  // what's left should be the one corresp to vsPreds
 	  
 	  covariatesCorrelation[k] = 
-	    arma::inv( arma::diagmat( arma::sqrt(tmpDiag) ) ) * 
-	      XtX[k].submat(nFIXPredictors(k),nFIXPredictors(k),nFIXPredictors(k)+nVSPredictors(k)-1,nFIXPredictors(k)+nVSPredictors(k)-1) * 
-      arma::inv( arma::diagmat( arma::sqrt(tmpDiag) ) );
+			arma::inv( arma::diagmat( arma::sqrt(tmpDiag) ) ) * 
+				XtX.submat(nFIXPredictors(k),nFIXPredictors(k),nFIXPredictors(k)+nVSPredictors(k)-1,nFIXPredictors(k)+nVSPredictors(k)-1) * 
+			arma::inv( arma::diagmat( arma::sqrt(tmpDiag) ) );
 	  
 	}
 
- 	
+
 //   // check indexes
 //   for(unsigned int k=0; k<nEquations; ++k)
 //   {
@@ -203,8 +227,8 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	// ## Set Prior Distributions  -- (and init values)
 
 	// # R_k -- diagonal matrix with elements coming from IG(a_r_0,b_r_0)
-	double a_r_0 = 0.1;
-	double b_r_0 = 0.01;
+	double a_r_0 = 1.05;
+	double b_r_0 = 20;
 	// these could be a vector for each k, but is it worth it? (TODO)
 
 
@@ -213,7 +237,7 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	// Beta comes from a Matrix Normal distribution with parameters MN(mean_beta_0,W_0,I_sk)   I_sk could be R_k, but is it worth it?
 
 	// double m_beta_0 = 0;  // this are common for all the coefficients
-	double sigma2_beta_0 = 10;
+	double sigma2_beta_0 = 100;
 
 	// arma::mat mean_beta_0(p+1, s); mean_beta_0.fill(m_beta_0); // this is assumed zero everywhere. STOP
 	std::vector<arma::mat> W_0(nEquations);
@@ -240,7 +264,7 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	arma::vec accCount = arma::zeros<arma::vec>(nEquations); // one for each block
 	arma::mat accCount_tmp = arma::zeros<arma::mat>(nEquations,nChains); // this is instead one for each block and each chain
 
-	// ## Initialise chain traces and states
+	// ***** Initialise chain traces and states
 
 	std::vector<arma::mat> omega_init(nEquations);
 	std::vector<arma::umat> gamma_init(nEquations);
@@ -274,28 +298,48 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 		omega_state[k] = arma::cube(nVSPredictors(k),nOutcomes(k),nChains); 	
 		gamma_state[k] = arma::ucube(nVSPredictors(k),nOutcomes(k),nChains);	
 
-		logPrior_state[k] = arma::vec(nChains);
-		logLik_state[k] = arma::vec(nChains);
-
 		// fill
 		omega_state[k].slice(0) = omega_init[k];
 		gamma_state[k].slice(0) = gamma_init[k];
-
-		logPrior_state[k](0) = Model::logSURPrior(omega_init[k], gamma_init[k], a_0[k], b_0[k]);
-
-		logLik_state[k](0) = Model::logSURLikelihood(data, outcomesIdx[k], 
-                  fixedPredictorsIdx[k], vsPredictorsIdx[k], XtX[k], 
-                  gamma_init[k], a_r_0, b_r_0, W_0[k], 1.);
 
 		for(unsigned int m=1; m<nChains ; ++m)
 		{
 			omega_state[k].slice(m) = omega_init[k];
 			gamma_state[k].slice(m) = gamma_init[k];
+		}
+	}
+
+
+	// ****** Now init the imputations and run a first stage
+	arma::vec covariatesOnlyMean, covariatesOnlyVar;
+	arma::uvec covariatesOnlyIdx;
+
+	Imputation::initialiseXimpute(data, missingDataIndexes, SEMGraph, blockIdx,
+                    covariatesOnlyMean, covariatesOnlyVar,covariatesOnlyIdx);
+
+	Imputation::imputeAll(data, missingDataIndexes, missingDataIdxArray, varType,
+                    covariatesOnlyMean, covariatesOnlyVar, covariatesOnlyIdx,
+                    outcomesIdx, fixedPredictorsIdx,vsPredictorsIdx,
+                    gamma_state, a_r_0, b_r_0, W_0);
+
+	// Now fill the initial likelihoods and priors
+	for( unsigned int k=0; k<nEquations; ++k)
+	{
+		logPrior_state[k] = arma::vec(nChains);
+		logLik_state[k] = arma::vec(nChains);
+
+		logPrior_state[k](0) = Model::logSURPrior(omega_init[k], gamma_init[k], a_0[k], b_0[k]);
+
+		logLik_state[k](0) = Model::logSURLikelihood(data, outcomesIdx[k], 
+                  fixedPredictorsIdx[k], vsPredictorsIdx[k],
+                  gamma_init[k], a_r_0, b_r_0, W_0[k], 1.);
+
+		for(unsigned int m=1; m<nChains ; ++m)
+		{
 			logPrior_state[k](m) = logPrior_state[k](0);
 			logLik_state[k](m) = logLik_state[k](0);
 		}
 	}
-
 	
 	// # Define temperture ladder
 	double maxTemperature = arma::min(a_0[0]) - 2.; // due to the tempered gibbs moves
@@ -439,10 +483,10 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	{
 
 		Model::SEM_MCMC_step(data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx,
-					omega_state, gamma_state, logPrior_state, logLik_state, XtX,
+					omega_state, gamma_state, logPrior_state, logLik_state,
 					a_r_0, b_r_0, W_0, a_0, b_0, accCount_tmp, nUpdates, temperature,
 					zeta, alpha_z, beta_z, mismatch, normalised_mismatch, normalised_mismatch_backwards,
-					0, // method forced to zero now, TODO
+					method,
 					parCrossOver, covariatesCorrelation, nGlobalUpdates, countGlobalUpdates, accCountGlobalUpdates,
 					maxTemperature, temperatureRatio, deltaTempRatio); 
 
@@ -450,6 +494,19 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 		for( unsigned int k=0; k<nEquations; ++k)
 			gamma_out[k] += gamma_state[k].slice(0); // the result of the whole procedure is now my new mcmc point, so add that up
 		
+
+		// impute new data
+		if ( missingDataIndexes.n_elem > 0)
+		{
+			Imputation::imputeAll(data, missingDataIndexes, missingDataIdxArray, varType,
+                    covariatesOnlyMean, covariatesOnlyVar, covariatesOnlyIdx,
+                    outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx,
+                    gamma_state, a_r_0, b_r_0, W_0);
+		}
+
+
+		// everything done!!
+
 		// Print something on how the chain is going
 		if( (iteration+1) % 100 == 0 )
 		{
@@ -459,10 +516,10 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 
 			std::cout << " Running iteration " << iteration+1 << " .. acc.rate ~ ";
       
-      for( unsigned int k=0; k<nEquations; ++k)
-      {
-        std::cout << std::round( 1000.0 * accCount(k)/(double)iteration ) / 1000.0 << " "; 
-      }
+			for( unsigned int k=0; k<nEquations; ++k)
+			{
+				std::cout << std::round( 1000.0 * accCount(k)/(double)iteration ) / 1000.0 << " "; 
+			}
       
 			if( nChains > 1 )
 			{
@@ -470,11 +527,13 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 			  for( unsigned int k=0; k<nEquations; ++k)
 			  {
 			    std::cout << std::round( 1000.0 * accCountGlobalUpdates[k] / (double)countGlobalUpdates[k] ) / 1000.0  << " ";
-		  }}
+		  	  }
+			}
 			// std::cout << "  ~~  " << temperature.t();
 			std::cout << std::endl;
 			
 		}
+
 
 		// Output to files every now and then
 		if( (iteration+1) % (1000) == 0 )

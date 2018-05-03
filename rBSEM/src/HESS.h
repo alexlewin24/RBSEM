@@ -9,13 +9,13 @@ namespace Model{
 	double logSURPrior(const arma::mat &omega, const arma::umat &gamma, const arma::vec& a_0, const arma::vec& b_0);
 
 	double logSURLikelihood(const arma::mat& data, const arma::uvec& outcomesIdx,
-           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx, const arma::mat& XtX,
+           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
            const arma::umat &gamma, const double a_r_0, const double b_r_0, const arma::mat &W_0, double temp);
 
 	void banditProposal(arma::umat &gamma, arma::mat &zeta, arma::umat &gamma_prop, arma::mat& alpha_z, arma::mat& beta_z,
            arma::vec& mismatch, arma::vec& normalised_mismatch, arma::vec& normalised_mismatch_backwards,
            const arma::mat& data, const arma::uvec& outcomesIdx,
-           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx, arma::mat& XtX,
+           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
            arma::mat& omega_curr, double& logPrior_curr, double &logLik_curr,
            const double a_r_0, const double b_r_0, const arma::mat& W_0, const arma::vec& a_0, const arma::vec& b_0,
            double& accCount, unsigned int nUpdates, double temp);
@@ -24,7 +24,7 @@ namespace Model{
 	void bandit_SUR_MCMC_step(const arma::mat& data, const arma::uvec& outcomesIdx,
            const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
            arma::mat& omega_curr, arma::umat& gamma_curr, 
-           double& logPrior_curr, double &logLik_curr, arma::mat& XtX, 
+           double& logPrior_curr, double &logLik_curr,
            const double a_r_0, const double b_r_0, const arma::mat& W_0, 
            const arma::vec& a_0, const arma::vec& b_0, double& accCount, unsigned int nUpdates, double temp,
            arma::mat& zeta, arma::mat& alpha_z, arma::mat& beta_z, arma::vec& mismatch,
@@ -33,7 +33,7 @@ namespace Model{
 	void MC3_SUR_MCMC_step(const arma::mat& data, const arma::uvec& outcomesIdx,
           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
           arma::mat& omega_curr, arma::umat& gamma_curr, 
-          double& logPrior_curr, double &logLik_curr, arma::mat& XtX,
+          double& logPrior_curr, double &logLik_curr,
 					const double a_r_0, const double b_r_0, const arma::mat& W_0, 
 					const arma::vec& a_0, const arma::vec& b_0, double& accCount, unsigned int nUpdates, double temp);
 
@@ -41,7 +41,7 @@ namespace Model{
           const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
           unsigned int thisBlockIdx,
           arma::cube& omega_state, arma::ucube& gamma_state, 
-          arma::vec& logPrior_state, arma::vec& logLik_state,  arma::mat& XtX,
+          arma::vec& logPrior_state, arma::vec& logLik_state,
           const double a_r_0, const double b_r_0, const arma::mat& W_0, 
           const arma::vec& a_0, const arma::vec& b_0, 
           const arma::vec& pCrossOver, const arma::mat& covariatesCorrelation, // tuning pars
@@ -52,7 +52,7 @@ namespace Model{
 	void SEM_MCMC_step(const arma::mat& data, const std::vector<arma::uvec>& outcomesIdx,
           const std::vector<arma::uvec>& fixedPredictorsIdx, const std::vector<arma::uvec>& vsPredictorsIdx,
           std::vector<arma::cube>& omega_state, std::vector<arma::ucube>& gamma_state, 
-          std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state, std::vector<arma::mat>& XtX, 
+          std::vector<arma::vec>& logPrior_state, std::vector<arma::vec>& logLik_state,
           const double a_r_0, const double b_r_0, const std::vector<arma::mat>& W_0, 
           const std::vector<arma::vec>& a_0, const std::vector<arma::vec>& b_0,
           arma::mat& accCount, unsigned int nUpdates, std::vector<arma::vec>& temp, 
@@ -86,7 +86,6 @@ namespace Model{
 						arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
 						const arma::mat& data, const arma::uvec& outcomesIdx,
 						const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
-						const arma::mat& XtX,  // data
 						const double a_r_0, const double b_r_0, const arma::mat& W_0,
 						const arma::vec& a_0, const arma::vec& b_0,	// Prior pars
 						const arma::vec& temperature, const unsigned int nChains, const unsigned int nGlobalUpdates, // hyper tuning pars
@@ -96,7 +95,6 @@ namespace Model{
             arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
             const arma::mat& data, const arma::uvec& outcomesIdx,
             const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
-            const arma::mat& XtX,  // data
 						const double a_r_0, const double b_r_0, const arma::mat& W_0,
 						const arma::vec& a_0, const arma::vec& b_0,
 						const arma::mat& covariatesCorrelation, const arma::vec& temperature,	// Prior pars, data
@@ -107,7 +105,6 @@ namespace Model{
            arma::vec& logPrior_state, arma::vec& logLik_state,    	// states
            const arma::mat& data, const arma::uvec& outcomesIdx,
            const arma::uvec& fixedPredictorsIdx, const arma::uvec& vsPredictorsIdx,
-           const arma::mat& XtX,  // data
 						const double a_r_0, const double b_r_0, const arma::mat& W_0,
 						const arma::vec& a_0, const arma::vec& b_0,	// Prior pars
 						const arma::vec& temperature, double pXO_0, double pXO_1, double pXO_2,

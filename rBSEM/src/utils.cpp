@@ -16,12 +16,12 @@ namespace Utils{
 		bool status = X.load(fileName,arma::raw_ascii);
 
 		if(!status){ 
-			std::cout<< "Somethign went wrong while reading "<<fileName<<std::endl;
+			std::cout<< "Somethign went wrong while reading "<<fileName<<std::flush<<std::endl;
 			return false;
 		}else{
 
 			if(X.n_cols < (nOutcomes+nPredictors) ){
-				std::cout<< "Less columns than the sum of the specified outcomes and predictors. Specify the correct numbers. "<<std::endl;
+				std::cout<< "Less columns than the sum of the specified outcomes and predictors. Specify the correct numbers. "<<std::flush<<std::endl;
 				return false;
 			}
 
@@ -56,7 +56,7 @@ namespace Utils{
 		arma::ivec uniqueBlockIndexes;
 		
 		if(!status){ 
-			std::cout<< "Somethign went wrong while reading "<<fileName<<std::endl;
+			std::cout<< "Somethign went wrong while reading "<<fileName<<std::flush<<std::endl;
 			return false;
 		}else{
 
@@ -68,7 +68,7 @@ namespace Utils{
 			
 			if( arma::max( blockIndexes ) < 1 || uniqueBlockIndexes.n_elem < 2 ) // more indepth check would be length of positive indexes..
 			{
-				std::cout<< "You need to define at least two blocks -- Xs and Ys"<<std::endl;
+				std::cout<< "You need to define at least two blocks -- Xs and Ys"<<std::flush<<std::endl;
 				return false;
 			}
 
@@ -123,7 +123,6 @@ namespace Utils{
 			// Now deal with NANs
 			if( data.has_nan() )
 			{
-			  return false; // for now add this guard against NAs
 				missingDataIndexes = arma::find_nonfinite(data);
 				data(missingDataIndexes).fill( arma::datum::nan );  // This makes all the ind values into valid armadillo NANs (should be ok even without, but..)
 			}
@@ -163,4 +162,20 @@ namespace Utils{
       		return a;
     	return std::max(a, b) + std::log( (double)(1. + std::exp( (double)-std::abs((double)(a - b)) )));
 	}
+
+	arma::uvec arma_setdiff_idx(const arma::uvec& x, const arma::uvec& y){
+
+		arma::uvec ux = arma::unique(x);
+		arma::uvec uy = arma::unique(y);
+
+		for (size_t j = 0; j < uy.n_elem; j++) {
+			arma::uvec q1 = arma::find(ux == uy[j]);
+			if (!q1.empty()) {
+				ux.shed_row(q1(0));
+			}
+		}
+
+		return ux;
+	}
+
 }

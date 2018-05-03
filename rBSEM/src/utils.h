@@ -22,6 +22,7 @@ namespace Utils{
 	double logspace_add(const arma::vec& logv);
 	double logspace_add(double a,double b);
 
+	arma::uvec arma_setdiff_idx(const arma::uvec& x, const arma::uvec& y);
 	
 }
 

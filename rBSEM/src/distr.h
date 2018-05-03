@@ -25,6 +25,7 @@ namespace Distributions{
 	arma::uvec randMultinomial(unsigned int n, const arma::vec prob);
 
 	double randNormal(const double m, const double sigmaSquare); // random normal interface to arma::randn
+	arma::vec randNormal(const unsigned int n, const double m, const double sigmaSquare);
 	arma::vec randNormal(const int n, const double m, const double sigmaSquare);
 	arma::vec randMvNormal(const arma::vec &m, const arma::mat &Sigma);
 

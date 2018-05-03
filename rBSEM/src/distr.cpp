@@ -106,6 +106,15 @@ namespace Distributions{
 		return res;
 	}
 
+	arma::vec randNormal(const int n, const double m=0., const double sigmaSquare=1.) // n-sample normal, parameters mean and variance
+	{
+    	arma::vec res(n);
+    	std::normal_distribution<> d(m,sqrt(sigmaSquare));
+    	for(int i=0; i<n; ++i)
+			res(i) = d(rng[omp_get_thread_num()]);
+		return res;
+	}
+
 	arma::vec randMvNormal(const arma::vec &m, const arma::mat &Sigma) // random normal interface to arma::randn
 	{
 		unsigned int d = m.n_elem;
