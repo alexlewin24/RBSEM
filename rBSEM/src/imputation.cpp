@@ -67,8 +67,6 @@ namespace Imputation{
             covariatesOnlyVar(j) = M2/(double)(count-1);
         }
         
-        // Now add in priors
-
     }
 
 
@@ -89,7 +87,10 @@ namespace Imputation{
             arma::uvec missingIdxThisColumn;
             arma::uvec currentCol(1);
             unsigned int nMissingThisColumn;
-
+            double aCovariates, bCovariates;
+            double mCovariates, vSquareCovariates;
+            double V_n;
+            
             for( unsigned int j=0, n=covariatesOnlyIdx.n_elem; j<n; ++j)
             {
                 currentCol = covariatesOnlyIdx(j);
@@ -98,8 +99,20 @@ namespace Imputation{
                 nMissingThisColumn = missingIdxThisColumn.n_elem;
                 if( nMissingThisColumn > 0 )
                 {
+                  
+                  V_n = ( (nObservations - nMissingThisColumn) + 1./100. );
 
-                    tmpVec = Distributions::randNormal( nMissingThisColumn , covariatesOnlyMean(j) , covariatesOnlyVar(j) );
+                  mCovariates = ( (nObservations - nMissingThisColumn) * covariatesOnlyMean(j) /* + ZERO/100.  */ ) / V_n;
+
+                  aCovariates = 1.001 + 0.5 * (double)nObservations;
+                  bCovariates = 100 + 0.5 * ( (nObservations - nMissingThisColumn - 1) * covariatesOnlyVar(j) +
+                   ( ( (nObservations - nMissingThisColumn) * 1./100. ) / V_n ) * (covariatesOnlyMean(j)*covariatesOnlyMean(j)) );
+
+                  vSquareCovariates = bCovariates * ( 1. + V_n ) / (aCovariates * V_n ) ;
+
+                  tmpVec = Distributions::randT(nMissingThisColumn, 2. * aCovariates ) *
+                      std::sqrt( vSquareCovariates ) + mCovariates; // % is element-wise multiplication
+                  
 
                     if( varType( covariatesOnlyIdx(j) ) == 0 )
                     {
@@ -174,6 +187,8 @@ namespace Imputation{
                 arma::vec tilde_B; arma::mat W_n; double a_r_n,b_r_n;
                 arma::mat X_new, XtX;
 
+                arma::uvec nonMissingIdxThisColumn;
+
                 for( unsigned int j=0, nOutcomes = outcomesIdx[k].n_elem; j<nOutcomes; ++j)
                 {
                     currentCol = outcomesIdx[k](j);
@@ -181,6 +196,9 @@ namespace Imputation{
                     // check howManyNaNInThisColumn
                     missingIdxThisColumn = missingDataIdxArray.submat( arma::find( missingDataIdxArray.col(1) == outcomesIdx[k](j) ) , arma::zeros<arma::uvec>(1) ); // arma::zeros<arma::uvec>(1) is basically one '0', but in uvec shape
                     nMissingThisColumn = missingIdxThisColumn.n_elem;
+
+                    nonMissingIdxThisColumn = Utils::arma_setdiff_idx( arma::regspace<arma::uvec>(0,nObservations-1) , missingIdxThisColumn );
+
                     if( nMissingThisColumn > 0 )
                     {
                         
@@ -193,10 +211,10 @@ namespace Imputation{
                         XtX = arma::trans( data.cols( VS_IN ) ) * data.cols( VS_IN );
 
                         W_n = arma::inv_sympd( XtX + arma::inv_sympd( W_0[k](xVS_IN,xVS_IN) ) );
-                        tilde_B = W_n * ( arma::trans( data.cols(VS_IN) ) * data.col( covariatesOnlyIdx(j) )  /* + W_0[k].i() * ZERO  */ );
+                        tilde_B = W_n * ( arma::trans( data.submat(nonMissingIdxThisColumn,VS_IN) ) * data.submat(nonMissingIdxThisColumn, currentCol )  /* + W_0[k].i() * ZERO  */ );
 
-                        a_r_n = a_r_0 + 0.5 * (double)nObservations;
-                        b_r_n = b_r_0 + 0.5 * arma::as_scalar( arma::trans(data.col( covariatesOnlyIdx(j) )) * data.col( covariatesOnlyIdx(j) ) - 
+                        a_r_n = a_r_0 + 0.5 * (double)( nObservations - nMissingThisColumn) ;
+                        b_r_n = b_r_0 + 0.5 * arma::as_scalar( arma::trans(data.submat(nonMissingIdxThisColumn, currentCol )) * data.submat(nonMissingIdxThisColumn, currentCol ) - 
                                 ( tilde_B.t() * arma::inv_sympd(W_n) * tilde_B ) );
                     
                         X_new = data.submat(missingIdxThisColumn,VS_IN);
@@ -212,6 +230,9 @@ namespace Imputation{
                         tmpVec = Distributions::randT(nMissingThisColumn, 2. * a_r_n ) % arma::sqrt( vSquarePredictive ) + mPredictive; // % is element-wise multiplication
                         data.submat(missingIdxThisColumn, currentCol ) = tmpVec;
 
+                        // std::cout << j <<"  -- m:" << mPredictive(0) << " ! " << vSquarePredictive(0) << std::flush << std::endl;
+                        
+                        
                     }
                 }
 

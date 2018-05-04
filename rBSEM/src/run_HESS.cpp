@@ -71,16 +71,6 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 	  
 	}
 	
-	std::cout << "SEM structure: "<< std::endl;
-	for( unsigned int k=0; k<nEquations; ++k)
-	{
-	  std::cout << "Eq " << k+1 << "  :  " << SEMEquations[k](0) << " ~ " << 
-	    arma::trans(SEMEquations[k].subvec(arma::span(1,SEMEquations[k].n_elem-1)));// << std::endl;
-	}
-	std::cout << std::endl;
-	// std::cout << std::endl << SEMGraph << std::endl;
-  std::cout << missingDataIndexes.n_elem/(double)nObservations <<"% of missing data.." <<std::flush<<std::endl;
-	
 	// now find the indexes for each block in a more armadillo-interpretable way
 	std::vector<arma::uvec> blockIdx(nBlocks);
 	for( unsigned int k = 0; k<(nBlocks); ++k)
@@ -110,8 +100,21 @@ int run_HESS(std::string inFile, std::string outFilePath, bool autoAddIntercept,
 		completeCases = arma::regspace<arma::uvec>(0, nObservations-1);
 	} 
 
+	std::cout << "SEM structure: "<< std::endl;
+	for( unsigned int k=0; k<nEquations; ++k)
+	{
+	  std::cout << "Eq " << k+1 << "  :  " << SEMEquations[k](0) << " ~ " << 
+	    arma::trans(SEMEquations[k].subvec(arma::span(1,SEMEquations[k].n_elem-1)));// << std::endl;
+	}
+	std::cout << std::endl;
+	// std::cout << std::endl << SEMGraph << std::endl;
+	// std::cout << missingDataIndexes << std::flush << std::endl;
+	std::cout << 100. * missingDataIndexes.n_elem/(double)(nObservations*data.n_cols) <<"% of missing data.." <<std::flush<<std::endl;
+	std::cout << 100. * completeCases.n_elem/(double)(nObservations) <<"% of Complete cases" <<std::flush<<std::endl;
+	
+	
 
-	// XtX covariates only   /// THIS SHOULD BE RE-COMPUTED EVERY TIME I CHANGE IMPUTATION!!!
+	// XtX covariates only
 	arma::mat XtX;
 	std::vector<arma::mat> covariatesCorrelation(nEquations);
 	

@@ -19,13 +19,3 @@
 \description{
 Run a simple SEM Bayesian sampler -- internal function
 }
-\examples{
-dir.create("tmp") 
-data(sample_SEM)
-write.table(sample_sem,"tmp/sem_data.txt",row.names = FALSE,col.names = FALSE)
-
-blockList = list(c(1),c(rep(0,ncol(sample_SEM)-1)))
-varType = rep(0,ncol(sample_SEM))
-rHESS_SEM_internal(inFile="tmp/sem_data.txt",outFilePath="tmp/",nIter=200)
-unlink("tmp", recursive=TRUE)
-}

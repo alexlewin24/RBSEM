@@ -11,15 +11,6 @@
 #' @param nChains number of parallel chains to run
 #' @param seed pRNG seed
 #' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method
-#' @examples
-#' dir.create("tmp") 
-#' data(sample_SEM)
-#' write.table(sample_sem,"tmp/sem_data.txt",row.names = FALSE,col.names = FALSE)
-#' 
-#' blockList = list(c(1),c(rep(0,ncol(sample_SEM)-1)))
-#' varType = rep(0,ncol(sample_SEM))
-#' rHESS_SEM_internal(inFile="tmp/sem_data.txt",outFilePath="tmp/",nIter=200)
-#' unlink("tmp", recursive=TRUE)
 NULL
 
 rHESS_SEM_internal <- function(inFile, outFilePath, autoAddIntercept, nIter = 10L, nChains = 1L, seed = 0L, method = 0L) {

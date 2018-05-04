@@ -42,11 +42,11 @@ na = FALSE
 if(!na){
   load("data/sample_data.RData")
   rBSEM::rHESS_SEM(inFile="data/sem_data.txt",blockList = blockL,
-                   SEMGraph = G,outFilePath="data/",nIter=5000, method=1, nChains = 4)
+                   SEMGraph = G,outFilePath="data/",nIter=20000, method=1, nChains = 4)
 }else{
   load("data/na_sample_data.RData")
   rBSEM::rHESS_SEM(inFile="data/na_sem_data.txt",blockList = blockL,
-                   SEMGraph = G,outFilePath="data/",nIter=5000, method=1, nChains = 4)
+                   SEMGraph = G,outFilePath="data/",nIter=20000, method=1, nChains = 4)
 }
 
 

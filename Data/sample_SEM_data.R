@@ -1,7 +1,7 @@
 library(mvtnorm)
 library(MCMCpack)
 
-na=FALSE
+na=TRUE
 
 ## Simulate a 2 block SEM
 n = 200
@@ -55,9 +55,11 @@ data = cbind(y,x[,-1])   # leave out the intercept because is coded inside alrea
 
 ## Simulate some missing data
 if(na){
-  missing_idx = sample( 1:length(data), 0.02*(n*s) , replace = FALSE ) ##~5% of the data will be missing at random
-  missing_data = data[missing_idx] ## save them for later checking
-  data[missing_idx] = NaN
+  missing_rows = sample( 1:nrow(data), 0.05*n, replace = FALSE ) ##~5% of the data's row will have missing values
+  missing_idx = sample( 1:length(data[missing_rows,]), 0.1*length(data[missing_rows,]) , replace = FALSE ) ##~10% of those data will be missing at random
+  
+  missing_data = (data[missing_rows,])[missing_idx] ## save them for later checking
+  data[missing_rows,][missing_idx] = NaN
 }
 
 # Insert the header
