@@ -2,4 +2,6 @@
 
 export(rHESS_SEM)
 importFrom(Rcpp,sourceCpp)
+importFrom(utils,read.table)
+importFrom(utils,write.table)
 useDynLib(rBSEM)

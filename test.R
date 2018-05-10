@@ -11,8 +11,8 @@ library(devtools)
 setwd("rBSEM/")
 use_rcpp()
 ## follow instructions
+# devtools::use_vignette("rBSEM-vignette",pkg = "rBSEM")
 
-devtools::use_vignette("rBSEM-vignette",pkg = "rBSEM")
 
 ## --------------
 # each time you modify the source code do
@@ -26,17 +26,20 @@ devtools::use_vignette("rBSEM-vignette",pkg = "rBSEM")
 #  in R > rHESS_SEM(inFile="Data/sem_data.txt",outFilePath="Data/",nIter=20000)
 
 
-# better build rutine
+# better build routine
+remove.packages("rBSEM")
 devtools::has_devel()
 devtools::document("rBSEM")
+devtools::build_vignettes("rBSEM")
 # devtools::test(pkg = "rBSEM")
 # devtools::check("rBSEM", cran=TRUE)
-devtools::build("rBSEM")
-remove.packages("rBSEM")
+devtools::build("rBSEM",vignettes=TRUE)
 install.packages("rBSEM_0.1.0.tar.gz", repos = NULL, type="source")
 
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")
+
+# browseVignettes("rBSEM")
 
 na = FALSE
 
@@ -66,4 +69,3 @@ par(mfrow=c(2,2))
 image(est_gamma_1,col=greyscale); image(gamma_1[-1,],col=greyscale)
 image(est_gamma_2,col=greyscale); image(gamma_2[-1,],col=greyscale)
 par(mfrow=c(1,1))
-

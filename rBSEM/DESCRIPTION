@@ -2,17 +2,17 @@ Package: rBSEM
 Type: Package
 Title: Bayesian Structural Equation Model Regression
 Version: 0.1.0
-Date: 2018-04-10
-Authors@R: person("Marco", "Banterle", email = "marco.banterle@gmail.com", role = c("aut", "cre"))
-Maintainer@R: person("Marco", "Banterle", email = "marco.banterle@gmail.com", role = c("aut", "cre"))
+Date: 2018-05-10
+Authors@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre"))
+Maintainer@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre"))
 Description: More details about what the package does. See
        <http://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file>
        for details on how to write this part.
-License: GPL (>= 2)
+License: MIT + file LICENSE 
 RoxygenNote: 6.0.1
 Depends: R (>= 3.2)
 LinkingTo: Rcpp, RcppArmadillo (>= 0.8.400), BH
-Imports: Rcpp
+Imports: Rcpp, utils
 Suggests: testthat, knitr, rmarkdown
 LazyData: true
 VignetteBuilder: knitr

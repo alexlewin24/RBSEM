@@ -7,4 +7,5 @@
 #' @format A sampler data frame conforming with the software specs 200 obs and 28 variables 
 #' @useDynLib rBSEM
 #' @importFrom Rcpp sourceCpp
+#' @importFrom utils read.table write.table
 NULL
