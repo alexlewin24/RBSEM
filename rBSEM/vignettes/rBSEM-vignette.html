@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="author" content="Marco Banterle" />
+
+<meta name="date" content="2018-05-10" />
+
+<title>rBSEM - Bayesian Structural Equation Models</title>
+
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+div.sourceLine, a.sourceLine { display: inline-block; min-height: 1.25em; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; }
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+div.sourceLine, a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource div.sourceLine, .numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource div.sourceLine::before, .numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em; }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; color: #aaaaaa;  padding-left: 4px; }
+@media screen {
+a.sourceLine::before { text-decoration: underline; color: initial; }
+}
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.bn { color: #40a070; } /* BaseN */
+code span.fl { color: #40a070; } /* Float */
+code span.ch { color: #4070a0; } /* Char */
+code span.st { color: #4070a0; } /* String */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.ot { color: #007020; } /* Other */
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.fu { color: #06287e; } /* Function */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code span.cn { color: #880000; } /* Constant */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.im { } /* Import */
+code span.va { color: #19177c; } /* Variable */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.op { color: #666666; } /* Operator */
+code span.bu { } /* BuiltIn */
+code span.ex { } /* Extension */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.at { color: #7d9029; } /* Attribute */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#header {
+text-align: center;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">rBSEM - Bayesian Structural Equation Models</h1>
+<h4 class="author"><em>Marco Banterle</em></h4>
+<h4 class="date"><em>2018-05-10</em></h4>
+
+
+
+
+<!-- annoying that i need to redefine thecommand inside latex environment, but... -->
+<span class="math display">\[\begin{align} \newcommand{\bms}[1]{\boldsymbol{#1}} \end{align}\]</span>
+<div id="model-specification" class="section level1">
+<h1>Model Specification</h1>
+<p>This software performs Bayesian inference through MCMC on the following structural equation regression model:</p>
+<p>All variables which appear as outcomes in a regression equation (endogenous variables) are denoted by <span class="math inline">\(y\)</span>. These can also appear as predictors. Variables which only appear as predictors (exogenous variables) are denoted by <span class="math inline">\(x\)</span>.</p>
+<p>For one individual, we will have a vector of endogenous variables (outcomes) <span class="math inline">\(\boldsymbol{y}_i\)</span>, length <span class="math inline">\(s\)</span>. Each outcome <span class="math inline">\(\boldsymbol{y}_{i,k}\)</span> can be a vector of <span class="math inline">\(s_k\)</span> variables and will denote the single univariate component as <span class="math inline">\(y_{i,k,l}\)</span>, for individual <span class="math inline">\(i\)</span>, outcome <span class="math inline">\(k\)</span> and component <span class="math inline">\(l\)</span>. We will denote the error terms <span class="math inline">\(\epsilon\)</span>, <span class="math inline">\(\boldsymbol{\epsilon}_i\)</span>, <span class="math inline">\(\boldsymbol{\epsilon}_{i,k}\)</span> and <span class="math inline">\(\epsilon_{i,k,l}\)</span> in a similar fashion.</p>
+<p>For each outcome <span class="math inline">\(k = 1,...,s\)</span> we define a vector of predictor variables <span class="math inline">\(\boldsymbol{x}_{i,k}\)</span>, with length <span class="math inline">\(p_k\)</span>, where each individual element will be denoted <span class="math inline">\({x}_{i,k,j}\)</span> for individual <span class="math inline">\(i\)</span>, outcome <span class="math inline">\(k\)</span> and component <span class="math inline">\(j\)</span>.</p>
+<p>We will also denote <span class="math inline">\(\boldsymbol{y}_k\)</span> <span class="math inline">\(\boldsymbol{\epsilon}_k\)</span> and <span class="math inline">\(\boldsymbol{x}_k\)</span> the corresponding matrices (<span class="math inline">\(n \times s_k\)</span>) for all individuals.</p>
+<p>An example of a structural equation model with 2 endogenous (possibly multivariate) variables is</p>
+<span class="math display">\[\begin{align}\label{eq:example_2var}
+\bms y_{i,2} &amp;= \lambda_2 \bms y_{i,1} +  (1, \bms {x}_{i,2}^t ) \bms {\beta}_{2} + \bms \epsilon_{i,2} \nonumber\\
+\bms y_{i,1 }&amp;=   (1, \bms {x}_{i,1}^t) \bms {\beta}_{1} + \bms \epsilon_{i,1}
+\end{align}\]</span>
+<p>where the intercept coefficients are included in the <span class="math inline">\(\boldsymbol{\beta}_k\)</span> vectors (so <span class="math inline">\(\boldsymbol{\beta}_k\)</span> is length <span class="math inline">\(p_k+1\)</span>).</p>
+<p>We can rewrite this as <span class="math display">\[\begin{align*}
+\begin{pmatrix}
+1 &amp; -\lambda_2 \\
+0 &amp; 1
+\end{pmatrix}
+\begin{pmatrix}
+\bms y_{i,2} \\
+\bms y_{i,1}
+\end{pmatrix}
+=
+\begin{pmatrix}
+(1, \bms{x}_{i,2}^t) &amp; 0 \\
+0 &amp; (1, \bms{x}_{i,1}^t) 
+\end{pmatrix}
+\begin{pmatrix}
+\bms{\beta}_{2} \\
+\bms{\beta}_{1} 
+\end{pmatrix}
++
+\begin{pmatrix}
+\bms\epsilon_{i,2} \\
+\bms\epsilon_{i,1}
+\end{pmatrix}
+\end{align*}\]</span></p>
+<p>or more concisely</p>
+<span class="math display">\[\begin{align*} 
+\Lambda \bms{y}_i = X_i \bms{\beta} + \bms{\epsilon}_i
+\end{align*}\]</span>
+<p>where <span class="math inline">\(\Lambda\)</span> is <span class="math inline">\(s \times s\)</span> and <span class="math inline">\(\boldsymbol{y}_i\)</span> and <span class="math inline">\(\boldsymbol{\epsilon}_i\)</span> are length <span class="math inline">\(s\)</span>.</p>
+<p>The regression coefficients are bundled together and (in this example) include the intercept terms for all outcomes. The design matrix <span class="math inline">\(X_i\)</span> is thus <span class="math inline">\(n \times (\sum_k p_k+s)\)</span>.</p>
+<p>Some elements of <span class="math inline">\(\Lambda\)</span> will be set to be zero, as in the example above, both to define the structure of the model and to ensure identifiability. The maximum number of non-zero elements of <span class="math inline">\(\Lambda\)</span> is assumed thus to be <span class="math inline">\(s(s-1)/2\)</span> and only the upper diagonal can be populated, so that no symmetry (or no <em>feedback</em> as they’re usually called in econometrics) is possible.</p>
+<p>We will also make the simplifying assumption of independent <em>residuals</em> between the different outcomes, so we set <span class="math inline">\(\boldsymbol{\epsilon}_{i,k} \sim N(\boldsymbol{0}, R_k)\)</span> where <span class="math inline">\(R_k\)</span> is a <span class="math inline">\(s_k \times s_k\)</span> dimensional <em>diagonal</em> covariance matrix, <em>i.e.</em> <span class="math inline">\(\mathbb{E}[\epsilon_{i,k,l},\epsilon_{i,k,l'}] = 0\)</span>, and we’ll also assume independence between components in different outcomes, <em>i.e.</em> <span class="math inline">\(\mathbb{E}[\boldsymbol{\epsilon}_{i,k},\boldsymbol{\epsilon}_{i,k'}] = \boldsymbol{0}\)</span>.</p>
+<p>For a more in-depth introduction to SEMs see for example .</p>
+<p>Call <span class="math inline">\(A_{i,k}\)</span> for <span class="math inline">\(k \in \{1,\dots,s\}\)</span> the vector of predictors for outcome <span class="math inline">\(k\)</span>, <em>i.e.</em> <span class="math inline">\(A_{i,2} = \left( 1, \boldsymbol{x}_{i,2} , \boldsymbol{y}_{i,1} \right)\)</span> in the above example, and <span class="math inline">\(B_k = \left(\beta_k,\lambda_k\right)\)</span> their corresponding regression coefficients associated with <span class="math inline">\(\boldsymbol{y}_{i,k}\)</span>.</p>
+<p>In general let’s define <span class="math inline">\(I_k \subseteq \{ 1, \dots, s \} \setminus k\)</span> the set indexes for outcomes that appear on the right-hand side of the regression equation <span class="math inline">\(k\)</span>; in the above example we have <span class="math inline">\(I_1 = \emptyset\)</span> and <span class="math inline">\(I_2 = \{1\}\)</span>. This can be seen as the non-zero values in column <span class="math inline">\(k\)</span> of the matrix <span class="math inline">\(\Lambda\)</span> above, excluding the diagonal. Then we have that <span class="math inline">\(B_k\)</span> has dimension <span class="math inline">\(s_k \times p_k + \sum \limits_{j \in {I}_k} s_j\)</span>.</p>
+<div id="variable-selection" class="section level2">
+<h2>Variable Selection</h2>
+<p>We want to perform variable selection on all these predictors in a general way, such that each component in <span class="math inline">\(\boldsymbol{y}_k\)</span> can be associated with a potentially different set of predictors in <span class="math inline">\(A_{\cdot,k}\)</span>.</p>
+<p>We achieve this by introducing a set of binary matrices <span class="math inline">\(\Gamma_k\)</span>, with similar dimensions to <span class="math inline">\(B_k\)</span>, that effectively multiply each regression coefficient making so that only variables whose <span class="math inline">\(\gamma\)</span> is different from zero will impact the outcome.</p>
+<p>As it is common to have a subset of the covariates that we do not want to exclude from the model, we will allow for some covariates to be considered at all times; we will call these predictors <em>required</em> and we will essentially fix their <span class="math inline">\(\gamma\)</span> coefficients to <span class="math inline">\(1\)</span>; the intercept for example is usually considered to always be included. In order to distinguish from <em>required</em> variables, we will call the ones whose <span class="math inline">\(\gamma\)</span> coefficient is random <em>optional</em> and we note here that each outcome variable appearing on the right-hand-side will always be considered <em>optional</em>.</p>
+<p>By writing <span class="math inline">\(B_{\gamma_k}\)</span> and <span class="math inline">\(A_{\cdot,\gamma_k}\)</span> the set of non-zero regression coefficients and their corresponding associated covariates we can thus re-write the model as</p>
+<span class="math display">\[\begin{equation}\label{eq:SEM_VS}
+\bms y_{i,k} = B_{\gamma_k}A_{i,\gamma_k} + \bms \epsilon_{i,k} \quad\quad k=1,\dots,s
+\end{equation}\]</span>
+<p>The parameters <span class="math inline">\(\Gamma_k\)</span> are the main object of inference, while every other variable will be integrated out analytically thanks to conjugacy. See for example  for more details on this type of variable selection model.</p>
+</div>
+<div id="prior-specification" class="section level2">
+<h2>Prior Specification</h2>
+<p>We want to take advantage of conjugacy as much as possible. Each diagonal coefficient of the residual matrices is distributed according to an Inverse Gamma <span class="math display">\[[R_k]_{l,l} \sim i\Gamma\left(a_{k,l},b_{k,l}\right)\]</span> The regression coefficients are Normally distributed (remember <span class="math inline">\(B_k\)</span> is a matrix <span class="math inline">\(s_k \times p_k + \sum \limits_{j \in \mathcal{S}_k} s_j\)</span>) <span class="math display">\[ vec\left(B_k\right) \sim \mathcal{N}\left( \boldsymbol{0} , I_{s_k} \otimes W_{0,k} \right)\]</span> with <span class="math inline">\(W_{0,k}\)</span> a general valid covariance matrix; this formalism encompasses both a completely independent hyper-parameter, a residual-dependent covariance like <span class="math inline">\(\frac{R_k}{w}\)</span> or even an empirical-Bayes-type <span class="math inline">\(g\)</span>-priors like <span class="math inline">\(g \left( A_k^tA_k\right)^{-1}\)</span>. We are assuming that <span class="math inline">\(B_{k,l}\)</span>, the vector of all the coefficients for component <span class="math inline">\(l\)</span> of outcome <span class="math inline">\(k\)</span> is independent from <span class="math inline">\(\boldsymbol{B}_{k,l'}\)</span> for each <span class="math inline">\(l' \in \{1,\dots,s_k\} \setminus l\)</span>.</p>
+<p>This leads (conditionally on all the <span class="math inline">\(\Gamma_k\)</span>s) to an overall multivariate <span class="math inline">\(t\)</span>-distributed marginal likelihood <span class="math inline">\(p(y|\Gamma_{1:s})\)</span> which is analytically tractable. See again  for more details.</p>
+<p>Each coefficient in each of the <span class="math inline">\(\Gamma_k\)</span> follows <em>a priori</em> a Bernoulli distribution <span class="math inline">\(\gamma_{k,l,j} \sim \mathcal{B}er( \omega_{k,l,j} )\)</span> where <span class="math inline">\(\omega_{k,l,j} \sim \mathcal{B}eta( a_{j} ,b_{j} )\)</span>; this allows us to link inference in a hierarchical way, assuming a sort propensity for a given predictor to be included regardless of the associated outcome, pooling information from all outcomes to help in inferring the variable selection procedure. Other priors are possible, for example  use <span class="math inline">\(\omega_{k,l,j} = \rho_l \nu_j\)</span>, pooling both across predictors and outcomes.</p>
+<p><em>All these priors are hard-coded for the moment to sort of default values that depends on the dimensionality of the problem, would it be interesting to have them as potential input of the software as well to be able to tweak them?</em></p>
+</div>
+<div id="data-imputation" class="section level2">
+<h2>Data Imputation</h2>
+<p>As it is often the case that interesting data present missing data, the software has (albeit limited) capability to impute them via a Data Augmentation type of algorithm, with the main assumption that the data are <em>missing at random</em> (i.e. there’s no sistematic/probabilistic mechanism that censor the data based on the other variables under analysis).</p>
+<p>The type of variables can be both continuous, binary or ordinal and this will need to be hinted to the software at the start of the procedure (see below).</p>
+</div>
+<div id="sampler-specification" class="section level2">
+<h2>Sampler Specification</h2>
+<p>The MCMC algorithm we’re using is based on the Evolutionary Stochastic Search MCMC of  and related works. We thus run multiple chains in parallel and perform global exchange/cross-over moves between chains to aid the mixing in the binary <span class="math inline">\(\Gamma\)</span> space.</p>
+<p>The proposal distribution for the binary coefficients in <span class="math inline">\(\Gamma_k\)</span> is either a more traditional random add-delete move for a single coefficient at a time (named <span class="math inline">\(MC3\)</span> in ) or a novel adaptive proposal distribution.</p>
+</div>
+</div>
+<div id="software-usage" class="section level1">
+<h1>Software Usage</h1>
+<div id="data-generation-and-software-input" class="section level2">
+<h2>Data Generation and Software Input </h2>
+<p>The software expects a simple <code>.txt</code> file containing all the variables involved in the model, where each column is, <em>with no distinction for the moment</em>, either an outcome <span class="math inline">\({y}_{1:n,k,l}\)</span>, <span class="math inline">\(k \in \{1,\dots,s\}\)</span> and <span class="math inline">\(l \in \{1,\dots,s_k\}\)</span>, or <span class="math inline">\({x}_{1:n,k,j}\)</span>, <span class="math inline">\(k \in \{1,\dots,s\}\)</span>, <span class="math inline">\(j \in \{1,\dots,p_k\}\)</span> where <span class="math inline">\(1:n\)</span> denotes the observations for each individual from <span class="math inline">\(1\)</span> to <span class="math inline">\(n\)</span> of that variable. Note that we assume that each column has the same number of rows, equal to the total number of observation <span class="math inline">\(n\)</span>.</p>
+<p>Missing data should be specified as <code>NAN</code> , for example via the <code>na = &quot;NAN&quot;</code> parameter in R <code>write.table</code> function.</p>
+<p>The preferred way to build the structure of the model is to introduce the concept of a <em>block</em>. We will call a block a set of variables, again with no distinction between outcomes and predictors for now.</p>
+<hr />
+<p>Call <span class="math inline">\(\mathcal{B} = \{b_1, \dots, b_M\}\)</span> the set of <em>blocks</em>, where each block <span class="math inline">\(b_m\)</span> has the following properties:</p>
+<ul>
+<li>each <span class="math inline">\(b_m\)</span> is unique, <em>i.e.</em> <span class="math inline">\(b_m \cap\)</span> <span class="math inline">\(\left( \cup_{ m' \in \left\{1:M \setminus m\right\}} b_{m'} \right)\)</span> <span class="math inline">\(= \varnothing\)</span>;</li>
+<li>each <span class="math inline">\(b_m\)</span> is composed only of <span class="math inline">\(x\)</span>s of <span class="math inline">\(y\)</span>s, <em>i.e.</em> each block is only made up only by covariates or by variables that appear as outcomes in at least one equation;</li>
+<li>each block composed by variables that are only covariates ( <span class="math inline">\(x\)</span>s ) is entirely made up by <em>required</em> or <em>optional</em> variables (See the Variable Selection section for details);</li>
+<li>each regression equation in the SEM will have one block on the left-hand-side and any number of blocks on the righ-hand-side, this means that when building the SEM we will have <span class="math display">\[[b_m = ] \boldsymbol{y}_{i,k} = \boldsymbol{\epsilon}_{i,k} + A_{i,k}B_k \left[ = \left(\sum \limits_{\mathcal{I}_m} b_{m'}\right)B_k + \boldsymbol{\epsilon}_{i,k}\right]\]</span> where <span class="math inline">\(\mathcal{I}_m\)</span> is the set of all the blocks that form the right-hand-side of the equation where <span class="math inline">\(b_m\)</span> appears on the left-hand-side, <em>i.e.</em> <span class="math inline">\(A_{i,k}\)</span>.</li>
+</ul>
+<p>Note that this does not impose that each block appear only once in the SEM and in fact it will be common to have a recurring <em>required</em> covariates block on the right-hand-side of mutiple equations.</p>
+<p>In order to assign each variable to the correct block in the SEM and to input the SEM structure itself we will now introduce two extra parameter needed by the sofware:</p>
+<ul>
+<li>an <code>R</code> list called <code>blockList</code> of vector of indexes that defines <span class="math inline">\(\mathcal{B}\)</span>;</li>
+<li>an adjacency matrix <code>SEMGraph</code> that represent the structure of the SEM.</li>
+</ul>
+<p>Each element of <code>blockList</code>, <em>i.e.</em> each vector of indexes, defines one block <span class="math inline">\(b_m\)</span> by specifying the correspondent column-indexes in the data file, where <span class="math inline">\(m\)</span> is simply the order in which they appear in the list. All the columns in the data file whose index is not specified in <code>blockList</code> will simply be disregarded.</p>
+<p><code>SEMGraph</code> is an <span class="math inline">\(M \times M\)</span> matrix with zeros on the diagonal where each non-zero element <span class="math inline">\(i,j\)</span> implies an edge in the SEM from block <span class="math inline">\(b_i\)</span> to block <span class="math inline">\(b_j\)</span>, which means that <span class="math inline">\(b_i \in \mathcal{I}_j\)</span>.</p>
+<p>Because of the above constraints on the blocks we will have that <code>SEMGraph</code> is a completely asymmetric matrix ( if <code>SEMGraph</code><span class="math inline">\(_{(i,j)} \neq 0\)</span> then <code>SEMGraph</code><span class="math inline">\(_{(j,i)} = 0\)</span> ) and we will be able to read the SEM equations by going thourgh <code>SEMGraph</code> column-wise: column <span class="math inline">\(j\)</span> represent the equation where <span class="math inline">\(b_j\)</span> is on the left-hand-side and every non-zero element will be a predictor; all the <span class="math inline">\(\boldsymbol{0}\)</span> columns represent covariates-only blocks.</p>
+<p>To connect back to the mathematical notation of the first Section, note that the order of the equations (<span class="math inline">\(k \in 1,\dots, s\)</span>) is in fact given by the order of the non-<span class="math inline">\(\boldsymbol{0}\)</span> columns in <code>SEMGraph</code>; similarly the order on which the variables appear on the right-hand-side of each equation is the order of the rows in <code>SEMGraph</code> and the respectiv order in each <span class="math inline">\(\boldsymbol{y}_k\)</span> or <span class="math inline">\(\boldsymbol{x}_k\)</span> is given by their appearence in their block in <code>blockList</code>.</p>
+<p>Finally note that in order to allow for distinction between <em>required</em> and <em>optional</em> predictors, each edge in the adjacency matrix will need to be specified as a + <code>1</code> for <em>optional</em> variables and + <code>2</code> for <em>required</em> variables.</p>
+<hr />
+<p>In order to aid the imputation algorithm a further vector <code>varType</code> of “<em>type</em> labels” is required, coded as ‘<span class="math inline">\(0\)</span>’ for continuous variables, ‘<span class="math inline">\(1\)</span>’ for binary and ‘<span class="math inline">\(2\)</span>’ for ordinal variables; the software will deduce the number of levels for ordinal variables from the data, assuming the two extremes are observed.</p>
+<p><code>varType</code> will have to have length equal to either the number of columns of the input data file or the total number of indexes provided in the <code>blockList</code> argument, but <code>varType[i]</code> will always refer to the <span class="math inline">\(i^{th}\)</span> <em>used</em> column of the data matrix and will not depends on the <em>order</em> in which the variables appear in the block list.</p>
+<p>For all these parameters some sanity checks are in place and should give an indication of what changes are needed in order for the inputs to be correct.</p>
+<div id="autoaddintercept-and-method-arguments" class="section level3">
+<h3><code>autoAddIntercept</code> and <code>method</code> arguments</h3>
+<p>Generally, unless all the outcomes have been standardised, we’d like to always include an intercept term for each equation. This translates to adding to each <span class="math inline">\(A_{1:n,k}\)</span> a column of <code>1</code>s. In the sefotware this can also be accomplished by creating one such column in the data matrix, and create a by-itself <em>required</em> block of only one variable that connects to each outcome. By specifying <code>autoAddIntercept = TRUE</code> while calling the <code>rHESS_SEM</code> function the software will automatically take care of that,but a user requiring more flexibility (perhaps because only some of the outcomes are standardised) will need to set <code>autoAddIntercept</code> to <code>FALSE</code> and manually add the corresponding column vector in the data file, its block in <code>blockList</code> and its row/column in <code>SEMGraph</code> with <code>2</code>s on the row as required.</p>
+<p>The <code>method</code> parameter instead specify the sampler used for the binary matrices <span class="math inline">\(\Gamma_k\)</span>, with <code>method=0</code> being the traditional “<span class="math inline">\(MC^3\)</span>” Metropolis-Hastings sampler where at each iteration a certain number of coefficient are randomly proposed a switch to <code>0</code> or <code>1</code> (one at a time) and accepted/rejected according to the corresponding likelihood; <code>method=1</code> is a novel binary sampler by Banterle, Lewin (details and preprint available soon).</p>
+<p><code>method=1</code> should be slightly slower in terms of computations but far more efficient in exploring the space.</p>
+<p>These arguments have default values, meaning that if you want the intercepts to be added and to use the default (novel) sampler, there’s no need to specify them.</p>
+</div>
+</div>
+<div id="software-output" class="section level2">
+<h2>Software Output</h2>
+<p>As of now the software outputs the average values of all the <span class="math inline">\(\Gamma_k\)</span> for the <em>optional</em> predictors of the first (untempered) chain in txt files called <code>[dataFileName]_HESS_gamma_[k]_out.txt</code> .</p>
+<p>Each element of (each of) the matrix contains the posterior inclusion probability of the corresponding element of <span class="math inline">\(\Gamma_{k}\)</span> restricted to the <em>optional</em> variables.</p>
+</div>
+<div id="running-the-software" class="section level2">
+<h2>Running the software</h2>
+<p>An example <code>R</code> code that generates data conformant to the above specifications, calls the main function and analyse the output is given below:</p>
+<pre class="sourceCode r" id="cb1"><code class="sourceCode r"><div class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">library</span>(mvtnorm)</div>
+<div class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">library</span>(MCMCpack)</div>
+<div class="sourceLine" id="cb1-3" data-line-number="3"></div>
+<div class="sourceLine" id="cb1-4" data-line-number="4">## Do we want to generate data with missing values?</div>
+<div class="sourceLine" id="cb1-5" data-line-number="5">na=<span class="ot">TRUE</span></div>
+<div class="sourceLine" id="cb1-6" data-line-number="6"></div>
+<div class="sourceLine" id="cb1-7" data-line-number="7">## Simulate a 2 block SEM</div>
+<div class="sourceLine" id="cb1-8" data-line-number="8">n =<span class="st"> </span><span class="dv">200</span></div>
+<div class="sourceLine" id="cb1-9" data-line-number="9">s_<span class="dv">1</span> =<span class="st"> </span><span class="dv">5</span>; s_<span class="dv">2</span> =<span class="st"> </span><span class="dv">3</span>; s=<span class="dv">8</span></div>
+<div class="sourceLine" id="cb1-10" data-line-number="10">p =<span class="st"> </span><span class="dv">20</span></div>
+<div class="sourceLine" id="cb1-11" data-line-number="11"></div>
+<div class="sourceLine" id="cb1-12" data-line-number="12">## Sparsity -- simulate gamma matrices</div>
+<div class="sourceLine" id="cb1-13" data-line-number="13">sparsity_lvl =<span class="st"> </span><span class="fl">0.3</span></div>
+<div class="sourceLine" id="cb1-14" data-line-number="14">gamma_<span class="dv">1</span> =<span class="st"> </span><span class="kw">matrix</span>(<span class="ot">NA</span>,p<span class="op">+</span><span class="dv">1</span>,s_<span class="dv">1</span>)</div>
+<div class="sourceLine" id="cb1-15" data-line-number="15"><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span>s_<span class="dv">1</span>){</div>
+<div class="sourceLine" id="cb1-16" data-line-number="16">  gamma_<span class="dv">1</span>[,i] =<span class="st"> </span><span class="kw">c</span>(<span class="ot">TRUE</span>, (<span class="dv">1</span><span class="op">:</span>p) <span class="op">%in%</span><span class="st"> </span><span class="kw">sample</span>(<span class="dv">1</span><span class="op">:</span>p,p<span class="op">*</span>sparsity_lvl,<span class="dt">replace =</span> <span class="ot">FALSE</span>) )</div>
+<div class="sourceLine" id="cb1-17" data-line-number="17">}</div>
+<div class="sourceLine" id="cb1-18" data-line-number="18"></div>
+<div class="sourceLine" id="cb1-19" data-line-number="19">gamma_<span class="dv">2</span> =<span class="st"> </span><span class="kw">matrix</span>(<span class="ot">NA</span>,p<span class="op">+</span>s_<span class="dv">1</span><span class="op">+</span><span class="dv">1</span>,s_<span class="dv">2</span>)</div>
+<div class="sourceLine" id="cb1-20" data-line-number="20"><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span>(s_<span class="dv">2</span>)){</div>
+<div class="sourceLine" id="cb1-21" data-line-number="21">  gamma_<span class="dv">2</span>[,i] =<span class="st"> </span><span class="kw">c</span>(<span class="ot">TRUE</span>, (<span class="dv">1</span><span class="op">:</span>(p<span class="op">+</span>s_<span class="dv">1</span>)) <span class="op">%in%</span><span class="st"> </span><span class="kw">sample</span>(<span class="dv">1</span><span class="op">:</span>(p<span class="op">+</span>s_<span class="dv">1</span>),(p<span class="op">+</span>s_<span class="dv">1</span>)<span class="op">*</span>sparsity_lvl,<span class="dt">replace =</span> <span class="ot">FALSE</span>) )</div>
+<div class="sourceLine" id="cb1-22" data-line-number="22">}</div>
+<div class="sourceLine" id="cb1-23" data-line-number="23"></div>
+<div class="sourceLine" id="cb1-24" data-line-number="24">## Simulate some correlated Predictors ...</div>
+<div class="sourceLine" id="cb1-25" data-line-number="25">RX =<span class="st"> </span><span class="kw">riwish</span>(p<span class="op">+</span><span class="dv">5</span>, <span class="kw">riwish</span>(p<span class="op">+</span><span class="dv">5</span>, <span class="kw">diag</span>(p) ) )</div>
+<div class="sourceLine" id="cb1-26" data-line-number="26">RX =<span class="st"> </span><span class="kw">solve</span>(<span class="kw">diag</span>(<span class="kw">sqrt</span>(<span class="kw">diag</span>(RX)))) <span class="op">%*%</span><span class="st"> </span>RX <span class="op">%*%</span><span class="st"> </span><span class="kw">solve</span>(<span class="kw">diag</span>(<span class="kw">sqrt</span>(<span class="kw">diag</span>(RX))))  ## rescaled</div>
+<div class="sourceLine" id="cb1-27" data-line-number="27"></div>
+<div class="sourceLine" id="cb1-28" data-line-number="28">x =<span class="st"> </span><span class="kw">rmvnorm</span>(n,<span class="kw">rep</span>(<span class="dv">0</span>,p),RX)</div>
+<div class="sourceLine" id="cb1-29" data-line-number="29">x =<span class="st"> </span><span class="kw">cbind</span>(<span class="kw">rep</span>(<span class="dv">1</span>,n),x)</div>
+<div class="sourceLine" id="cb1-30" data-line-number="30"></div>
+<div class="sourceLine" id="cb1-31" data-line-number="31">## .. and relative Regression Coefficients</div>
+<div class="sourceLine" id="cb1-32" data-line-number="32">sd_b =<span class="st"> </span><span class="dv">3</span></div>
+<div class="sourceLine" id="cb1-33" data-line-number="33">b_<span class="dv">1</span> =<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">rnorm</span>((p<span class="op">+</span><span class="dv">1</span>)<span class="op">*</span>s_<span class="dv">1</span>,<span class="dv">5</span>,sd_b),p<span class="op">+</span><span class="dv">1</span>,s_<span class="dv">1</span>)</div>
+<div class="sourceLine" id="cb1-34" data-line-number="34">b_<span class="dv">2</span> =<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">rnorm</span>((p<span class="op">+</span>s_<span class="dv">1</span><span class="op">+</span><span class="dv">1</span>)<span class="op">*</span>s_<span class="dv">2</span>,<span class="dv">5</span>,sd_b),p<span class="op">+</span>s_<span class="dv">1</span><span class="op">+</span><span class="dv">1</span>,s_<span class="dv">2</span>) ## here we have both beta_2 AND lambda_2</div>
+<div class="sourceLine" id="cb1-35" data-line-number="35"></div>
+<div class="sourceLine" id="cb1-36" data-line-number="36"></div>
+<div class="sourceLine" id="cb1-37" data-line-number="37">## Residual variances and Errors</div>
+<div class="sourceLine" id="cb1-38" data-line-number="38">var_r_<span class="dv">1</span> =<span class="st"> </span><span class="kw">diag</span>(<span class="kw">rinvgamma</span>(s_<span class="dv">1</span>,<span class="fl">1.5</span>,<span class="dv">2</span>)); var_r_<span class="dv">2</span> =<span class="st"> </span><span class="kw">diag</span>(<span class="kw">rinvgamma</span>(s_<span class="dv">2</span>,<span class="fl">1.5</span>,<span class="dv">2</span>))</div>
+<div class="sourceLine" id="cb1-39" data-line-number="39">err_<span class="dv">1</span> =<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">rnorm</span>(n<span class="op">*</span>s_<span class="dv">1</span>),n,s_<span class="dv">1</span>) <span class="op">%*%</span><span class="st"> </span><span class="kw">chol</span>(var_r_<span class="dv">1</span>)</div>
+<div class="sourceLine" id="cb1-40" data-line-number="40">err_<span class="dv">2</span> =<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">rnorm</span>(n<span class="op">*</span>s_<span class="dv">2</span>),n,s_<span class="dv">2</span>) <span class="op">%*%</span><span class="st"> </span><span class="kw">chol</span>(var_r_<span class="dv">2</span>)</div>
+<div class="sourceLine" id="cb1-41" data-line-number="41"></div>
+<div class="sourceLine" id="cb1-42" data-line-number="42">## Finally sample Ys</div>
+<div class="sourceLine" id="cb1-43" data-line-number="43">y=<span class="kw">matrix</span>(<span class="ot">NA</span>,n,s)</div>
+<div class="sourceLine" id="cb1-44" data-line-number="44"><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span>s_<span class="dv">1</span>){</div>
+<div class="sourceLine" id="cb1-45" data-line-number="45">    y[,i] =<span class="st"> </span>x[,gamma_<span class="dv">1</span>[,i]] <span class="op">%*%</span><span class="st"> </span>b_<span class="dv">1</span>[gamma_<span class="dv">1</span>[,i],i]</div>
+<div class="sourceLine" id="cb1-46" data-line-number="46">  }</div>
+<div class="sourceLine" id="cb1-47" data-line-number="47"><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span>s_<span class="dv">2</span>){</div>
+<div class="sourceLine" id="cb1-48" data-line-number="48">  y[,i<span class="op">+</span>s_<span class="dv">1</span>] =<span class="st"> </span><span class="kw">cbind</span>(x,y[,<span class="dv">1</span><span class="op">:</span>s_<span class="dv">1</span>])[,gamma_<span class="dv">2</span>[,i]] <span class="op">%*%</span><span class="st"> </span>b_<span class="dv">2</span>[gamma_<span class="dv">2</span>[,i],i]</div>
+<div class="sourceLine" id="cb1-49" data-line-number="49">}</div>
+<div class="sourceLine" id="cb1-50" data-line-number="50"></div>
+<div class="sourceLine" id="cb1-51" data-line-number="51">y =<span class="st"> </span>y <span class="op">+</span><span class="st"> </span><span class="kw">cbind</span>(err_<span class="dv">1</span>,err_<span class="dv">2</span>)</div>
+<div class="sourceLine" id="cb1-52" data-line-number="52"></div>
+<div class="sourceLine" id="cb1-53" data-line-number="53">## Form the data matrix</div>
+<div class="sourceLine" id="cb1-54" data-line-number="54">data =<span class="st"> </span><span class="kw">cbind</span>(y,x[,<span class="op">-</span><span class="dv">1</span>])   <span class="co"># leave out the intercept because is coded inside already</span></div>
+<div class="sourceLine" id="cb1-55" data-line-number="55"></div>
+<div class="sourceLine" id="cb1-56" data-line-number="56">## Simulate some missing data</div>
+<div class="sourceLine" id="cb1-57" data-line-number="57"><span class="cf">if</span>(na){</div>
+<div class="sourceLine" id="cb1-58" data-line-number="58">  missing_rows =<span class="st"> </span><span class="kw">sample</span>( <span class="dv">1</span><span class="op">:</span><span class="kw">nrow</span>(data), <span class="fl">0.05</span><span class="op">*</span>n, <span class="dt">replace =</span> <span class="ot">FALSE</span> ) ##~5% of the data's row will have missing values</div>
+<div class="sourceLine" id="cb1-59" data-line-number="59">  missing_idx =<span class="st"> </span><span class="kw">sample</span>( <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(data[missing_rows,]), <span class="fl">0.1</span><span class="op">*</span><span class="kw">length</span>(data[missing_rows,]) , <span class="dt">replace =</span> <span class="ot">FALSE</span> ) ##~10% of those data will be missing at random</div>
+<div class="sourceLine" id="cb1-60" data-line-number="60">  </div>
+<div class="sourceLine" id="cb1-61" data-line-number="61">  missing_data =<span class="st"> </span>(data[missing_rows,])[missing_idx] ## save them for later checking</div>
+<div class="sourceLine" id="cb1-62" data-line-number="62">  data[missing_rows,][missing_idx] =<span class="st"> </span><span class="ot">NaN</span></div>
+<div class="sourceLine" id="cb1-63" data-line-number="63">}</div>
+<div class="sourceLine" id="cb1-64" data-line-number="64"></div>
+<div class="sourceLine" id="cb1-65" data-line-number="65">#### Now build the software arguments</div>
+<div class="sourceLine" id="cb1-66" data-line-number="66">block_idx =<span class="st"> </span><span class="kw">c</span>(<span class="kw">rep</span>(<span class="dv">1</span>,s_<span class="dv">1</span>),<span class="kw">rep</span>(<span class="dv">2</span>,s_<span class="dv">2</span>),<span class="kw">rep</span>(<span class="dv">0</span>,p))</div>
+<div class="sourceLine" id="cb1-67" data-line-number="67">### list all the blocks</div>
+<div class="sourceLine" id="cb1-68" data-line-number="68">## starting from the Xs but that's arbitrary</div>
+<div class="sourceLine" id="cb1-69" data-line-number="69"></div>
+<div class="sourceLine" id="cb1-70" data-line-number="70">blockL =<span class="st"> </span><span class="kw">list</span>( </div>
+<div class="sourceLine" id="cb1-71" data-line-number="71">  <span class="kw">c</span>(<span class="dv">9</span><span class="op">:</span><span class="dv">28</span>),  ## x0 -- block 0</div>
+<div class="sourceLine" id="cb1-72" data-line-number="72">  <span class="kw">c</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>),  ## y1 -- block 1</div>
+<div class="sourceLine" id="cb1-73" data-line-number="73">  <span class="kw">c</span>(<span class="dv">6</span><span class="op">:</span><span class="dv">8</span>)  ## y2 -- block 2</div>
+<div class="sourceLine" id="cb1-74" data-line-number="74">)</div>
+<div class="sourceLine" id="cb1-75" data-line-number="75"></div>
+<div class="sourceLine" id="cb1-76" data-line-number="76">### then the graph structure</div>
+<div class="sourceLine" id="cb1-77" data-line-number="77">## edge i,j means an arrow i -&gt; j</div>
+<div class="sourceLine" id="cb1-78" data-line-number="78"></div>
+<div class="sourceLine" id="cb1-79" data-line-number="79">G =<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">c</span>( </div>
+<div class="sourceLine" id="cb1-80" data-line-number="80">  <span class="dv">0</span>,<span class="dv">1</span>,<span class="dv">1</span>,</div>
+<div class="sourceLine" id="cb1-81" data-line-number="81">  <span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">1</span>,</div>
+<div class="sourceLine" id="cb1-82" data-line-number="82">  <span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">0</span> ), </div>
+<div class="sourceLine" id="cb1-83" data-line-number="83">  <span class="dt">byrow=</span><span class="ot">TRUE</span>,<span class="dt">ncol=</span><span class="dv">3</span>,<span class="dt">nrow=</span><span class="dv">3</span>)</div>
+<div class="sourceLine" id="cb1-84" data-line-number="84"></div>
+<div class="sourceLine" id="cb1-85" data-line-number="85">var_types =<span class="st"> </span><span class="kw">rep</span>(<span class="dv">0</span>,s_<span class="dv">1</span><span class="op">+</span>s_<span class="dv">2</span><span class="op">+</span>p)</div>
+<div class="sourceLine" id="cb1-86" data-line-number="86"></div>
+<div class="sourceLine" id="cb1-87" data-line-number="87">## Write data to file and save the environment</div>
+<div class="sourceLine" id="cb1-88" data-line-number="88"></div>
+<div class="sourceLine" id="cb1-89" data-line-number="89"><span class="cf">if</span>(na){</div>
+<div class="sourceLine" id="cb1-90" data-line-number="90">  <span class="kw">write.table</span>(<span class="dt">x=</span>data,<span class="dt">file=</span><span class="st">&quot;data/na_sem_data.txt&quot;</span>,<span class="dt">na =</span> <span class="st">&quot;NAN&quot;</span>,<span class="dt">col.names=</span><span class="ot">FALSE</span>,<span class="dt">row.names=</span><span class="ot">FALSE</span>)</div>
+<div class="sourceLine" id="cb1-91" data-line-number="91">  <span class="kw">save.image</span>(<span class="st">&quot;data/na_sample_data.RData&quot;</span>)</div>
+<div class="sourceLine" id="cb1-92" data-line-number="92">}<span class="cf">else</span>{</div>
+<div class="sourceLine" id="cb1-93" data-line-number="93">  <span class="kw">write.table</span>(<span class="dt">x=</span>data,<span class="dt">file=</span><span class="st">&quot;data/sem_data.txt&quot;</span>,<span class="dt">na =</span> <span class="st">&quot;NAN&quot;</span>,<span class="dt">col.names=</span><span class="ot">FALSE</span>,<span class="dt">row.names=</span><span class="ot">FALSE</span>)</div>
+<div class="sourceLine" id="cb1-94" data-line-number="94">  <span class="kw">save.image</span>(<span class="st">&quot;data/sample_data.RData&quot;</span>)</div>
+<div class="sourceLine" id="cb1-95" data-line-number="95">}</div>
+<div class="sourceLine" id="cb1-96" data-line-number="96"></div>
+<div class="sourceLine" id="cb1-97" data-line-number="97">## Now call the function (assuming the rBSEM package is correctly installed)</div>
+<div class="sourceLine" id="cb1-98" data-line-number="98"><span class="cf">if</span>(<span class="op">!</span>na){</div>
+<div class="sourceLine" id="cb1-99" data-line-number="99">  <span class="kw">load</span>(<span class="st">&quot;data/sample_data.RData&quot;</span>)</div>
+<div class="sourceLine" id="cb1-100" data-line-number="100">  rBSEM<span class="op">::</span><span class="kw">rHESS_SEM</span>(<span class="dt">inFile=</span><span class="st">&quot;data/sem_data.txt&quot;</span>,<span class="dt">blockList =</span> blockL,</div>
+<div class="sourceLine" id="cb1-101" data-line-number="101">                   <span class="dt">SEMGraph =</span> G,<span class="dt">outFilePath=</span><span class="st">&quot;data/&quot;</span>,<span class="dt">nIter=</span><span class="dv">20000</span>, <span class="dt">method=</span><span class="dv">1</span>, <span class="dt">nChains =</span> <span class="dv">4</span>)</div>
+<div class="sourceLine" id="cb1-102" data-line-number="102">}<span class="cf">else</span>{</div>
+<div class="sourceLine" id="cb1-103" data-line-number="103">  <span class="kw">load</span>(<span class="st">&quot;data/na_sample_data.RData&quot;</span>)</div>
+<div class="sourceLine" id="cb1-104" data-line-number="104">  rBSEM<span class="op">::</span><span class="kw">rHESS_SEM</span>(<span class="dt">inFile=</span><span class="st">&quot;data/na_sem_data.txt&quot;</span>,<span class="dt">blockList =</span> blockL,</div>
+<div class="sourceLine" id="cb1-105" data-line-number="105">                   <span class="dt">SEMGraph =</span> G,<span class="dt">outFilePath=</span><span class="st">&quot;data/&quot;</span>,<span class="dt">nIter=</span><span class="dv">20000</span>, <span class="dt">method=</span><span class="dv">1</span>, <span class="dt">nChains =</span> <span class="dv">4</span>)</div>
+<div class="sourceLine" id="cb1-106" data-line-number="106">}</div>
+<div class="sourceLine" id="cb1-107" data-line-number="107"></div>
+<div class="sourceLine" id="cb1-108" data-line-number="108"></div>
+<div class="sourceLine" id="cb1-109" data-line-number="109">## then check some output</div>
+<div class="sourceLine" id="cb1-110" data-line-number="110">greyscale =<span class="st"> </span><span class="kw">grey</span>((<span class="dv">0</span><span class="op">:</span><span class="dv">1000</span>)<span class="op">/</span><span class="dv">1000</span>)</div>
+<div class="sourceLine" id="cb1-111" data-line-number="111"></div>
+<div class="sourceLine" id="cb1-112" data-line-number="112"><span class="cf">if</span>(<span class="op">!</span>na){</div>
+<div class="sourceLine" id="cb1-113" data-line-number="113">  est_gamma_<span class="dv">1</span> =<span class="st"> </span><span class="kw">as.matrix</span>( <span class="kw">read.table</span>(<span class="st">&quot;data/sem_data_HESS_gamma_0_out.txt&quot;</span>) )</div>
+<div class="sourceLine" id="cb1-114" data-line-number="114">  est_gamma_<span class="dv">2</span> =<span class="st"> </span><span class="kw">as.matrix</span>( <span class="kw">read.table</span>(<span class="st">&quot;data/sem_data_HESS_gamma_1_out.txt&quot;</span>) )</div>
+<div class="sourceLine" id="cb1-115" data-line-number="115">}<span class="cf">else</span>{</div>
+<div class="sourceLine" id="cb1-116" data-line-number="116">  est_gamma_<span class="dv">1</span> =<span class="st"> </span><span class="kw">as.matrix</span>( <span class="kw">read.table</span>(<span class="st">&quot;data/na_sem_data_HESS_gamma_0_out.txt&quot;</span>) )</div>
+<div class="sourceLine" id="cb1-117" data-line-number="117">  est_gamma_<span class="dv">2</span> =<span class="st"> </span><span class="kw">as.matrix</span>( <span class="kw">read.table</span>(<span class="st">&quot;data/na_sem_data_HESS_gamma_1_out.txt&quot;</span>) )</div>
+<div class="sourceLine" id="cb1-118" data-line-number="118">}</div>
+<div class="sourceLine" id="cb1-119" data-line-number="119"></div>
+<div class="sourceLine" id="cb1-120" data-line-number="120">## Note that there's correlation between X and y_1 so y_1 + x has some collienearity,</div>
+<div class="sourceLine" id="cb1-121" data-line-number="121"><span class="co"># which skews a bit the results on gamma_2</span></div>
+<div class="sourceLine" id="cb1-122" data-line-number="122"></div>
+<div class="sourceLine" id="cb1-123" data-line-number="123"><span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">2</span>,<span class="dv">2</span>))</div>
+<div class="sourceLine" id="cb1-124" data-line-number="124"><span class="kw">image</span>(est_gamma_<span class="dv">1</span>,<span class="dt">col=</span>greyscale); <span class="kw">image</span>(gamma_<span class="dv">1</span>[<span class="op">-</span><span class="dv">1</span>,],<span class="dt">col=</span>greyscale)</div>
+<div class="sourceLine" id="cb1-125" data-line-number="125"><span class="kw">image</span>(est_gamma_<span class="dv">2</span>,<span class="dt">col=</span>greyscale); <span class="kw">image</span>(gamma_<span class="dv">2</span>[<span class="op">-</span><span class="dv">1</span>,],<span class="dt">col=</span>greyscale)</div>
+<div class="sourceLine" id="cb1-126" data-line-number="126"><span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">1</span>))</div></code></pre>
+</div>
+</div>
+
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

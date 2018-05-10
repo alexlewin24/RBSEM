@@ -1,6 +1,7 @@
 library(mvtnorm)
 library(MCMCpack)
 
+## Do we want to generate data with missing values?
 na=TRUE
 
 ## Simulate a 2 block SEM
@@ -20,18 +21,17 @@ for(i in 1:(s_2)){
   gamma_2[,i] = c(TRUE, (1:(p+s_1)) %in% sample(1:(p+s_1),(p+s_1)*sparsity_lvl,replace = FALSE) )
 }
 
-## Simulate Predictors ...
-RX = riwish(p+5, riwish(p+5, diag(p) ) ); RX = solve(diag(sqrt(diag(RX)))) %*% RX %*% solve(diag(sqrt(diag(RX))))  ## rescaled
-
-RX = diag(p) ## debug to see if in the easiest case we can solve no problems
+## Simulate some correlated Predictors ...
+RX = riwish(p+5, riwish(p+5, diag(p) ) )
+RX = solve(diag(sqrt(diag(RX)))) %*% RX %*% solve(diag(sqrt(diag(RX))))  ## rescaled
 
 x = rmvnorm(n,rep(0,p),RX)
 x = cbind(rep(1,n),x)
 
-## .. and related Regression Coefficients
+## .. and relative Regression Coefficients
 sd_b = 3
 b_1 = matrix(rnorm((p+1)*s_1,5,sd_b),p+1,s_1)
-b_2 = matrix(rnorm((p+s_1+1)*s_2,5,sd_b),p+s_1+1,s_2) ## here we have both beta_2 AND lambdas
+b_2 = matrix(rnorm((p+s_1+1)*s_2,5,sd_b),p+s_1+1,s_2) ## here we have both beta_2 AND lambda_2
 
 
 ## Residual variances and Errors
@@ -62,10 +62,10 @@ if(na){
   data[missing_rows,][missing_idx] = NaN
 }
 
-# Insert the header
+#### Now build the software arguments
 block_idx = c(rep(1,s_1),rep(2,s_2),rep(0,p))
 ### list all the blocks
-## starting from x but that's arbitrary
+## starting from the Xs but that's arbitrary
 
 blockL = list( 
   c(9:28),  ## x0 -- block 0
@@ -84,7 +84,7 @@ G = matrix(c(
 
 var_types = rep(0,s_1+s_2+p)
 
-## Write data to file
+## Write data to file and save the environment
 
 if(na){
   write.table(x=data,file="data/na_sem_data.txt",na = "NAN",col.names=FALSE,row.names=FALSE)
@@ -93,4 +93,6 @@ if(na){
   write.table(x=data,file="data/sem_data.txt",na = "NAN",col.names=FALSE,row.names=FALSE)
   save.image("data/sample_data.RData")
 }
+
+## Note that there's correlation between X and y_1 so y_2 ~ y_1 + x has some collienearity
 

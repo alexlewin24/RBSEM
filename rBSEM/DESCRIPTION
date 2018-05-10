@@ -13,5 +13,6 @@ RoxygenNote: 6.0.1
 Depends: R (>= 3.2)
 LinkingTo: Rcpp, RcppArmadillo (>= 0.8.400), BH
 Imports: Rcpp
-Suggests: testthat
+Suggests: testthat, knitr, rmarkdown
 LazyData: true
+VignetteBuilder: knitr

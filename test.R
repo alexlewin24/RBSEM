@@ -12,6 +12,7 @@ setwd("rBSEM/")
 use_rcpp()
 ## follow instructions
 
+devtools::use_vignette("rBSEM-vignette",pkg = "rBSEM")
 
 ## --------------
 # each time you modify the source code do

@@ -1,0 +1,339 @@
+---
+title: "rBSEM - Bayesian Structural Equation Models"
+author: "Marco Banterle"
+date: "`r Sys.Date()`"
+
+output: rmarkdown::html_vignette
+    # fig_caption: yes
+vignette: >
+  %\VignetteIndexEntry{rBSEM - Bayesian Structural Equation Models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+\newcommand{\bms}[1]{\boldsymbol{#1}}
+<!-- annoying that i need to redefine thecommand inside latex environment, but... -->
+\begin{align} \newcommand{\bms}[1]{\boldsymbol{#1}} \end{align}
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Model Specification
+
+This software performs Bayesian inference through MCMC on the following structural equation regression model:
+
+All variables which appear as outcomes in a regression equation (endogenous variables) are denoted by $y$. These can also appear as predictors. Variables which only appear as predictors (exogenous variables) are denoted by $x$.
+
+For one individual, we will have a vector of endogenous variables (outcomes) $\bms {y}_i$, length $s$. Each outcome $\bms {y}_{i,k}$ can be a vector of $s_k$ variables and will denote the single univariate component as $y_{i,k,l}$, for individual $i$, outcome $k$ and component $l$.
+We will denote the error terms $\epsilon$, $\bms \epsilon_i$, $\bms \epsilon_{i,k}$ and $\epsilon_{i,k,l}$ in a similar fashion.
+
+For each outcome $k = 1,...,s$ we define a vector of predictor variables $\bms {x}_{i,k}$, with length $p_k$, where each individual element will be denoted ${x}_{i,k,j}$ for individual $i$, outcome $k$ and component $j$. 
+
+We will also denote $\bms {y}_k$ $\bms \epsilon_k$ and $\bms {x}_k$ the corresponding matrices ($n \times s_k$) for all individuals.
+
+An example of a structural equation model with 2 endogenous (possibly multivariate) variables is
+
+\begin{align}\label{eq:example_2var}
+\bms y_{i,2} &= \lambda_2 \bms y_{i,1} +  (1, \bms {x}_{i,2}^t ) \bms {\beta}_{2} + \bms \epsilon_{i,2} \nonumber\\
+\bms y_{i,1 }&=   (1, \bms {x}_{i,1}^t) \bms {\beta}_{1} + \bms \epsilon_{i,1}
+\end{align}
+where the intercept coefficients are included in the $\bms {\beta}_k$ vectors (so $\bms {\beta}_k$ is length $p_k+1$).
+
+We can rewrite this as
+\begin{align*}
+\begin{pmatrix}
+1 & -\lambda_2 \\
+0 & 1
+\end{pmatrix}
+\begin{pmatrix}
+\bms y_{i,2} \\
+\bms y_{i,1}
+\end{pmatrix}
+=
+\begin{pmatrix}
+(1, \bms{x}_{i,2}^t) & 0 \\
+0 & (1, \bms{x}_{i,1}^t) 
+\end{pmatrix}
+\begin{pmatrix}
+\bms{\beta}_{2} \\
+\bms{\beta}_{1} 
+\end{pmatrix}
++
+\begin{pmatrix}
+\bms\epsilon_{i,2} \\
+\bms\epsilon_{i,1}
+\end{pmatrix}
+\end{align*}
+
+or more concisely
+
+\begin{align*} 
+\Lambda \bms{y}_i = X_i \bms{\beta} + \bms{\epsilon}_i
+\end{align*}
+
+where $\Lambda$ is $s \times s$ and $\bms{y}_i$ and $\bms{\epsilon}_i$ are length $s$.
+
+The regression coefficients are bundled together and (in this example) include the intercept terms for all outcomes. The design matrix $X_i$ is thus $n \times (\sum_k p_k+s)$.
+
+Some elements of $\Lambda$ will be set to be zero, as in the example above, both to define the structure of the model and to ensure identifiability. The maximum number of non-zero elements of $\Lambda$ is assumed thus to be $s(s-1)/2$ and only the upper diagonal can be populated, so that no symmetry (or no *feedback* as they're usually called in econometrics) is possible.
+
+We will also make the simplifying assumption of independent *residuals* between the different outcomes, so we set $\bms{\epsilon}_{i,k} \sim N(\bms{0}, R_k)$ where $R_k$ is a $s_k \times s_k$ dimensional *diagonal* covariance matrix, *i.e.* $\mathbb{E}[\epsilon_{i,k,l},\epsilon_{i,k,l'}] = 0$, and we'll also assume independence between components in different outcomes, *i.e.* $\mathbb{E}[\bms\epsilon_{i,k},\bms\epsilon_{i,k'}] = \bms 0$.
+
+For a more in-depth introduction to SEMs see for example \hyperlink{http://www.genetics.org/content/167/3/1407.short}{Gianola and Sorenson (2004)}.
+
+Call $A_{i,k}$ for $k \in \{1,\dots,s\}$ the vector of predictors for outcome $k$, *i.e.* $A_{i,2} = \left( 1, \bms{x}_{i,2} , \bms{y}_{i,1} \right)$ in the above example, and $B_k = \left(\beta_k,\lambda_k\right)$ their corresponding regression coefficients associated with $\bms{y}_{i,k}$.
+
+In general let's define $I_k \subseteq \{ 1, \dots, s \} \setminus k$ the set indexes for outcomes that appear on the right-hand side of the regression equation $k$; in the above example we have $I_1 = \emptyset$ and $I_2 = \{1\}$. This can be seen as the non-zero values in column $k$ of the matrix $\Lambda$ above, excluding the diagonal.
+Then we have that $B_k$ has dimension $s_k \times p_k + \sum \limits_{j \in {I}_k} s_j$.
+
+## Variable Selection
+
+We want to perform variable selection on all these predictors in a general way, such that each component in $\bms y_k$ can be associated with a potentially different set of predictors in $A_{\cdot,k}$.
+
+We achieve this by introducing a set of binary matrices $\Gamma_k$, with similar dimensions to $B_k$, that effectively multiply each regression coefficient making so that only variables whose $\gamma$ is different from zero will impact the outcome.
+
+As it is common to have a subset of the covariates that we do not want to exclude from the model, we will allow for some covariates to be considered at all times; we will call these predictors *required* and we will essentially fix their $\gamma$ coefficients to $1$;
+the intercept for example is usually considered to always be included.
+In order to distinguish from *required* variables, we will call the ones whose $\gamma$ coefficient is random *optional* and we note here that each outcome variable appearing on the right-hand-side will always be considered *optional*.
+
+By writing $B_{\gamma_k}$ and $A_{\cdot,\gamma_k}$ the set of non-zero regression coefficients and their corresponding associated covariates we can thus re-write the model as 
+
+\begin{equation}\label{eq:SEM_VS}
+\bms y_{i,k} = B_{\gamma_k}A_{i,\gamma_k} + \bms \epsilon_{i,k} \quad\quad k=1,\dots,s
+\end{equation}
+
+The parameters $\Gamma_k$ are the main object of inference, while every other variable will be integrated out analytically thanks to conjugacy. See for example \hyperlink{https://academic.oup.com/bioinformatics/article-abstract/32/4/523/1743556}{Lewin et al. (2016)} for more details on this type of variable selection model.
+
+## Prior Specification
+
+We want to take advantage of conjugacy as much as possible.
+Each diagonal coefficient of the residual matrices is distributed according to an Inverse Gamma 
+$$[R_k]_{l,l} \sim i\Gamma\left(a_{k,l},b_{k,l}\right)$$
+The regression coefficients are Normally distributed (remember $B_k$ is a matrix $s_k \times p_k + \sum \limits_{j \in \mathcal{S}_k} s_j$)
+$$ vec\left(B_k\right) \sim \mathcal{N}\left( \bms{0} , I_{s_k} \otimes W_{0,k} \right)$$
+with $W_{0,k}$ a general valid covariance matrix; this formalism encompasses both a completely independent hyper-parameter, a residual-dependent covariance like $\frac{R_k}{w}$ or even an empirical-Bayes-type $g$-priors like $g \left( A_k^tA_k\right)^{-1}$.
+We are assuming that $B_{k,l}$, the vector of all the coefficients for component $l$ of outcome $k$ is independent from $\bms B_{k,l'}$ for each $l' \in \{1,\dots,s_k\} \setminus l$.
+
+This leads (conditionally on all the $\Gamma_k$s) to an overall multivariate $t$-distributed marginal likelihood $p(y|\Gamma_{1:s})$ which is analytically tractable. See again \hyperlink{https://academic.oup.com/bioinformatics/article-abstract/32/4/523/1743556}{Lewin et al. (2016)} for more details.
+
+Each coefficient in each of the $\Gamma_k$ follows *a priori* a Bernoulli distribution $\gamma_{k,l,j} \sim \mathcal{B}er( \omega_{k,l,j} )$ where $\omega_{k,l,j} \sim \mathcal{B}eta( a_{j} ,b_{j} )$; this allows us to link inference in a hierarchical way, assuming a sort propensity for a given predictor to be included regardless of the associated outcome, pooling information from all outcomes to help in inferring the variable selection procedure. Other priors are possible, for example \hyperlink{https://projecteuclid.org/euclid.ba/1340380542}{Bottolo, Richardson (2010)} use $\omega_{k,l,j} = \rho_l \nu_j$, pooling both across predictors and outcomes.
+
+*All these priors are hard-coded for the moment to sort of default values that depends on the dimensionality of the problem, would it be interesting to have them as potential input of the software as well to be able to tweak them?*
+
+## Data Imputation
+
+As it is often the case that interesting data present missing data, the software has (albeit limited) capability to impute them via a Data Augmentation type of algorithm, with the main assumption that the data are *missing at random* (i.e. there's no sistematic/probabilistic mechanism that censor the data based on the other variables under analysis).
+
+The type of variables can be both continuous, binary or ordinal and this will need to be hinted to the software at the start of the procedure (see below).
+
+## Sampler Specification
+
+The MCMC algorithm we're using is based on the Evolutionary Stochastic Search MCMC of \hyperlink{https://projecteuclid.org/euclid.ba/1340380542}{Bottolo, Richardson (2010)} and related works.
+We thus run multiple chains in parallel and perform global exchange/cross-over moves between chains to aid the mixing in the binary $\Gamma$ space.
+
+The proposal distribution for the binary coefficients in $\Gamma_k$ is either a more traditional random add-delete move for a single coefficient at a time (named $MC3$ in \hyperlink{https://projecteuclid.org/euclid.ba/1340380542}{Bottolo \& Richardson (2010)}) or a novel adaptive proposal distribution.
+
+# Software Usage
+
+## Data Generation and Software Input \label{sec:data}
+
+The software expects a simple `.txt` file containing all the variables involved in the model, where each column is, *with no distinction for the moment*, either an outcome ${y}_{1:n,k,l}$, $k \in \{1,\dots,s\}$ and $l \in \{1,\dots,s_k\}$, or ${x}_{1:n,k,j}$, $k \in \{1,\dots,s\}$, $j \in \{1,\dots,p_k\}$ where $1:n$ denotes the observations for each individual from $1$ to $n$ of that variable.
+Note that we assume that each column has the same number of rows, equal to the total number of observation $n$.
+
+Missing data should be specified as `NAN` , for example via the `na = "NAN"` parameter in R `write.table` function.
+
+The preferred way to build the structure of the model is to introduce the concept of a *block*. We will call a block a set of variables, again with no distinction between outcomes and predictors for now. 
+
+----
+
+Call $\mathcal{B} = \{b_1, \dots, b_M\}$ the set of *blocks*, where each block $b_m$ has the following properties:
+
++ each $b_m$ is unique, *i.e.* $b_m \cap$ $\left( \cup_{ m' \in \left\{1:M \setminus m\right\}} b_{m'} \right)$ $= \varnothing$;
++ each $b_m$ is composed only of $x$s of $y$s, *i.e.* each block is only made up only by covariates or by variables that appear as outcomes in at least one equation;
++ each block composed by variables that are only covariates ( $x$s ) is entirely made up by *required* or *optional* variables (See the Variable Selection section for details);
++ each regression equation in the SEM will have one block on the left-hand-side and any number of blocks on the righ-hand-side, this means that when building the SEM we will have $$[b_m = ] \bms{y}_{i,k} = \bms \epsilon_{i,k} + A_{i,k}B_k \left[ = \left(\sum \limits_{\mathcal{I}_m} b_{m'}\right)B_k + \bms \epsilon_{i,k}\right]$$
+    where $\mathcal{I}_m$ is the set of all the blocks that form the right-hand-side of the equation where $b_m$ appears on the left-hand-side, *i.e.* $A_{i,k}$.
+
+Note that this does not impose that each block appear only once in the SEM and in fact it will be common to have a recurring *required* covariates block on the right-hand-side of mutiple equations.
+
+In order to assign each variable to the correct block in the SEM and to input the SEM structure itself we will now introduce two extra parameter needed by the sofware:
+
++ an `R` list called `blockList` of vector of indexes that defines $\mathcal{B}$;
++ an adjacency matrix `SEMGraph` that represent the structure of the SEM.
+
+Each element of `blockList`, *i.e.* each vector of indexes, defines one block $b_m$ by specifying the correspondent column-indexes in the data file, where $m$ is simply the order in which they appear in the list. All the columns in the data file whose index is not specified in `blockList` will simply be disregarded.
+
+`SEMGraph` is an $M \times M$ matrix with zeros on the diagonal where each non-zero element $i,j$ implies an edge in the SEM from block $b_i$ to block $b_j$, which means that $b_i \in \mathcal{I}_j$.
+
+Because of the above constraints on the blocks we will have that `SEMGraph` is a completely asymmetric matrix ( if `SEMGraph`$_{(i,j)} \neq 0$ then `SEMGraph`$_{(j,i)} = 0$ ) and we will be able to read the SEM equations by going thourgh `SEMGraph` column-wise: column $j$ represent the equation where $b_j$ is on the left-hand-side and every non-zero element will be a predictor; all the $\bms 0$ columns represent covariates-only blocks.
+
+To connect back to the mathematical notation of the first Section, note that the order of the equations ($k \in 1,\dots, s$) is in fact given by the order of the non-$\bms 0$ columns in `SEMGraph`; similarly the order on which the variables appear on the right-hand-side of each equation is the order of the rows in `SEMGraph` and the respectiv order in each $\bms y_k$ or $\bms x_k$ is given by their appearence in their block in `blockList`.
+
+Finally note that in order to allow for distinction between *required* and *optional* predictors, each edge in the adjacency matrix will need to be specified as a 
++ `1` for *optional* variables and
++ `2` for *required* variables.
+
+----
+
+In order to aid the imputation algorithm a further vector `varType` of "*type* labels" is required, coded as '$0$' for continuous variables, '$1$' for binary and '$2$' for ordinal variables; the software will deduce the number of levels for ordinal variables from the data, assuming the two extremes are observed.
+
+`varType` will have to have length equal to either the number of columns of the input data file or the total number of indexes provided in the `blockList` argument, but `varType[i]` will always refer to the $i^{th}$ _used_ column of the data matrix and will not depends on the _order_ in which the variables appear in the block list.
+
+For all these parameters some sanity checks are in place and should give an indication of what changes are needed in order for the inputs to be correct.
+
+### `autoAddIntercept` and `method` arguments
+
+Generally, unless all the outcomes have been standardised, we'd like to always include an intercept term for each equation. This translates to adding to each $A_{1:n,k}$ a column of `1`s. In the sefotware this can also be accomplished by creating one such column in the data matrix, and create a by-itself *required* block of only one variable that connects to each outcome.
+By specifying `autoAddIntercept = TRUE` while calling the `rHESS_SEM` function the software will automatically take care of that,but a user requiring more flexibility (perhaps because only some of the outcomes are standardised) will need to set `autoAddIntercept` to `FALSE` and manually add the corresponding column vector in the data file, its block in `blockList` and its row/column in `SEMGraph` with `2`s on the row as required.
+
+The `method` parameter instead specify the sampler used for the binary matrices $\Gamma_k$, with `method=0` being the traditional "$MC^3$" Metropolis-Hastings sampler where at each iteration a certain number of coefficient are randomly proposed a switch to `0` or `1` (one at a time) and accepted/rejected according to the corresponding likelihood; `method=1` is a novel binary sampler by Banterle, Lewin (details and preprint available soon).
+
+`method=1` should be slightly slower in terms of computations but far more efficient in exploring the space. 
+
+These arguments have default values, meaning that if you want the intercepts to be added and to use the default (novel) sampler, there's no need to specify them.
+
+
+## Software Output
+
+As of now the software outputs the average values of all the $\Gamma_k$ for the *optional* predictors of the first (untempered) chain in txt files called `[dataFileName]_HESS_gamma_[k]_out.txt` . 
+
+Each element of (each of) the matrix contains the posterior inclusion probability of the corresponding element of $\Gamma_{k}$ restricted to the *optional* variables.
+
+## Running the software
+
+An example `R` code that generates data conformant to the above specifications, calls the main function and analyse the output is given below:
+
+
+```{r, eval=FALSE}
+library(mvtnorm)
+library(MCMCpack)
+
+## Do we want to generate data with missing values?
+na=TRUE
+
+## Simulate a 2 block SEM
+n = 200
+s_1 = 5; s_2 = 3; s=8
+p = 20
+
+## Sparsity -- simulate gamma matrices
+sparsity_lvl = 0.3
+gamma_1 = matrix(NA,p+1,s_1)
+for(i in 1:s_1){
+  gamma_1[,i] = c(TRUE, (1:p) %in% sample(1:p,p*sparsity_lvl,replace = FALSE) )
+}
+
+gamma_2 = matrix(NA,p+s_1+1,s_2)
+for(i in 1:(s_2)){
+  gamma_2[,i] = c(TRUE, (1:(p+s_1)) %in% sample(1:(p+s_1),(p+s_1)*sparsity_lvl,replace = FALSE) )
+}
+
+## Simulate some correlated Predictors ...
+RX = riwish(p+5, riwish(p+5, diag(p) ) )
+RX = solve(diag(sqrt(diag(RX)))) %*% RX %*% solve(diag(sqrt(diag(RX))))  ## rescaled
+
+x = rmvnorm(n,rep(0,p),RX)
+x = cbind(rep(1,n),x)
+
+## .. and relative Regression Coefficients
+sd_b = 3
+b_1 = matrix(rnorm((p+1)*s_1,5,sd_b),p+1,s_1)
+b_2 = matrix(rnorm((p+s_1+1)*s_2,5,sd_b),p+s_1+1,s_2) ## here we have both beta_2 AND lambda_2
+
+
+## Residual variances and Errors
+var_r_1 = diag(rinvgamma(s_1,1.5,2)); var_r_2 = diag(rinvgamma(s_2,1.5,2))
+err_1 = matrix(rnorm(n*s_1),n,s_1) %*% chol(var_r_1)
+err_2 = matrix(rnorm(n*s_2),n,s_2) %*% chol(var_r_2)
+
+## Finally sample Ys
+y=matrix(NA,n,s)
+for(i in 1:s_1){
+    y[,i] = x[,gamma_1[,i]] %*% b_1[gamma_1[,i],i]
+  }
+for(i in 1:s_2){
+  y[,i+s_1] = cbind(x,y[,1:s_1])[,gamma_2[,i]] %*% b_2[gamma_2[,i],i]
+}
+
+y = y + cbind(err_1,err_2)
+
+## Form the data matrix
+data = cbind(y,x[,-1])   # leave out the intercept because is coded inside already
+
+## Simulate some missing data
+if(na){
+  missing_rows = sample( 1:nrow(data), 0.05*n, replace = FALSE ) ##~5% of the data's row will have missing values
+  missing_idx = sample( 1:length(data[missing_rows,]), 0.1*length(data[missing_rows,]) , replace = FALSE ) ##~10% of those data will be missing at random
+  
+  missing_data = (data[missing_rows,])[missing_idx] ## save them for later checking
+  data[missing_rows,][missing_idx] = NaN
+}
+
+#### Now build the software arguments
+block_idx = c(rep(1,s_1),rep(2,s_2),rep(0,p))
+### list all the blocks
+## starting from the Xs but that's arbitrary
+
+blockL = list( 
+  c(9:28),  ## x0 -- block 0
+  c(1:5),  ## y1 -- block 1
+  c(6:8)  ## y2 -- block 2
+)
+
+### then the graph structure
+## edge i,j means an arrow i -> j
+
+G = matrix(c( 
+  0,1,1,
+  0,0,1,
+  0,0,0 ), 
+  byrow=TRUE,ncol=3,nrow=3)
+
+var_types = rep(0,s_1+s_2+p)
+
+## Write data to file and save the environment
+
+if(na){
+  write.table(x=data,file="data/na_sem_data.txt",na = "NAN",col.names=FALSE,row.names=FALSE)
+  save.image("data/na_sample_data.RData")
+}else{
+  write.table(x=data,file="data/sem_data.txt",na = "NAN",col.names=FALSE,row.names=FALSE)
+  save.image("data/sample_data.RData")
+}
+
+## Now call the function (assuming the rBSEM package is correctly installed)
+if(!na){
+  load("data/sample_data.RData")
+  rBSEM::rHESS_SEM(inFile="data/sem_data.txt",blockList = blockL,
+                   SEMGraph = G,outFilePath="data/",nIter=20000, method=1, nChains = 4)
+}else{
+  load("data/na_sample_data.RData")
+  rBSEM::rHESS_SEM(inFile="data/na_sem_data.txt",blockList = blockL,
+                   SEMGraph = G,outFilePath="data/",nIter=20000, method=1, nChains = 4)
+}
+
+
+## then check some output
+greyscale = grey((0:1000)/1000)
+
+if(!na){
+  est_gamma_1 = as.matrix( read.table("data/sem_data_HESS_gamma_0_out.txt") )
+  est_gamma_2 = as.matrix( read.table("data/sem_data_HESS_gamma_1_out.txt") )
+}else{
+  est_gamma_1 = as.matrix( read.table("data/na_sem_data_HESS_gamma_0_out.txt") )
+  est_gamma_2 = as.matrix( read.table("data/na_sem_data_HESS_gamma_1_out.txt") )
+}
+
+## Note that there's correlation between X and y_1 so y_1 + x has some collienearity,
+# which skews a bit the results on gamma_2
+
+par(mfrow=c(2,2))
+image(est_gamma_1,col=greyscale); image(gamma_1[-1,],col=greyscale)
+image(est_gamma_2,col=greyscale); image(gamma_2[-1,],col=greyscale)
+par(mfrow=c(1,1))
+
+```

@@ -33,7 +33,7 @@
 #' unlink("tmp", recursive=TRUE)
 #' 
 #' @export
-rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, nIter,  nChains=1, seed=0, method=0)
+rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, nIter,  nChains=1, seed=0, method=1)
 {
   
   # blockList
