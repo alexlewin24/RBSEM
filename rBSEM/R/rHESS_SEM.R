@@ -33,7 +33,7 @@
 #' unlink("tmp", recursive=TRUE)
 #' 
 #' @export
-rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, nIter,  nChains=1, seed=0, method=1)
+rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, gammaInit="S" ,nIter,  nChains=1, seed=0, method=1)
 {
   
   # blockList
@@ -51,7 +51,7 @@ rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", 
     
     # now try and read from given inFile
     if( !file.exists( inFile ) ){
-      stop("Input file dowsn't exists!")      
+      stop("Input file doesn't exists!")      
     }else{
       
       dataHeader = read.table(inFile,header = FALSE,nrows = 1)
@@ -113,7 +113,7 @@ rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", 
   write.table(varType,"tmp/varType.txt", row.names = FALSE, col.names = FALSE)
   write.table(SEMGraph,"tmp/SEMGraph.txt", row.names = FALSE, col.names = FALSE)
   
-  status = rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, nIter,  nChains, seed, method)
+  status = rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, gammaInit, nIter,  nChains, seed, method)
 
   if(outFilePath != "tmp/")
     unlink("tmp",recursive = TRUE)

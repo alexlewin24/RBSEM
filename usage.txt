@@ -8,7 +8,7 @@ or alternatively use
 
 $ make HESS
 
-EXAMPLES:
+and then
 
 ./HESS_Reg --inFile data/sem_data.txt --outFilePath data/ --nChains 1 --method 1 --seed 0 --nIter 200
 

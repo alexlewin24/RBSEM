@@ -12,6 +12,7 @@ int main(int argc, char *  argv[])
 	std::string outFilePath = "";
 	// std::string omegaInitPath = "";
 	// std::string gammaInitPath = "";
+	std::string gammaInit = "S";
 
 	unsigned int method = 0; // TODO Defaul should be our novel "bandit" method
 
@@ -42,10 +43,16 @@ int main(int argc, char *  argv[])
 			if (na+1==argc) break;
 			++na;
 		}
+		else if ( 0 == strcmp(argv[na],"--gammaInit") )
+		{
+			gammaInit = ""+std::string(argv[++na]); // use the next
+			if (na+1==argc) break; // in case it's last, break
+			++na;
+		}
 		else if ( 0 == strcmp(argv[na],"--seed") )
 		{
-			seed = atoi(argv[++na]);
-			if (na+1==argc) break;
+			seed = atoi(argv[++na]); // use the next
+			if (na+1==argc) break;  // in case it's last, break
 			++na;
 		}
 		else if ( 0 == strcmp(argv[na],"--nChains") )
@@ -92,7 +99,7 @@ int main(int argc, char *  argv[])
     }//end reading from command line
 
 
-	int status= run_HESS(inFile, outFilePath, true, nIter, nChains, seed, method);
+	int status= run_HESS(inFile, outFilePath, true, gammaInit, nIter, nChains, seed, method);
 
 	// Exit
 	return status;

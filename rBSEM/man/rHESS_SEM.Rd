@@ -5,7 +5,8 @@
 \title{rHESS_SEM}
 \usage{
 rHESS_SEM(inFile, blockList, varType = NULL, SEMGraph, outFilePath = "",
-  autoAddIntercept = TRUE, nIter, nChains = 1, seed = 0, method = 1)
+  autoAddIntercept = TRUE, gammaInit = "S", nIter, nChains = 1,
+  seed = 0, method = 1)
 }
 \arguments{
 \item{inFile}{path to data file}

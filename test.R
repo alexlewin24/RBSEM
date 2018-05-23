@@ -30,11 +30,10 @@ use_rcpp()
 remove.packages("rBSEM")
 devtools::has_devel()
 devtools::document("rBSEM")
-devtools::build_vignettes("rBSEM")
 # devtools::test(pkg = "rBSEM")
 # devtools::check("rBSEM", cran=TRUE)
 devtools::build("rBSEM",vignettes=TRUE)
-install.packages("rBSEM_0.1.0.tar.gz", repos = NULL, type="source")
+install.packages("rBSEM_0.1.1.tar.gz", repos = NULL, type="source")
 
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")
@@ -58,14 +57,21 @@ if(!na){
 greyscale = grey((0:1000)/1000)
 
 if(!na){
-  est_gamma_1 = as.matrix( read.table("data/sem_data_HESS_gamma_0_out.txt") )
-  est_gamma_2 = as.matrix( read.table("data/sem_data_HESS_gamma_1_out.txt") )
+  est_gamma_1 = as.matrix( read.table("data/sem_data_HESS_gamma_1_out.txt") )
+  est_gamma_2 = as.matrix( read.table("data/sem_data_HESS_gamma_2_out.txt") )
 }else{
-  est_gamma_1 = as.matrix( read.table("data/na_sem_data_HESS_gamma_0_out.txt") )
-  est_gamma_2 = as.matrix( read.table("data/na_sem_data_HESS_gamma_1_out.txt") )
+  est_gamma_1 = as.matrix( read.table("data/na_sem_data_HESS_gamma_1_out.txt") )
+  est_gamma_2 = as.matrix( read.table("data/na_sem_data_HESS_gamma_2_out.txt") )
 }
 
 par(mfrow=c(2,2))
 image(est_gamma_1,col=greyscale); image(gamma_1[-1,],col=greyscale)
 image(est_gamma_2,col=greyscale); image(gamma_2[-1,],col=greyscale)
 par(mfrow=c(1,1))
+
+
+# mcmc_gamma_1 = rBSEM::traceToArray(fileName = "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = 20000)
+# apply( mcmc_gamma_1 , 1:2 , mean )
+# plot(scan("data/sem_data_HESS_logP_out.txt"),type="l")
+
+

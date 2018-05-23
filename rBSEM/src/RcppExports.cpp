@@ -7,25 +7,26 @@
 using namespace Rcpp;
 
 // rHESS_SEM_internal
-int rHESS_SEM_internal(std::string inFile, std::string outFilePath, bool autoAddIntercept, unsigned int nIter, unsigned int nChains, unsigned long long seed, int method);
-RcppExport SEXP _rBSEM_rHESS_SEM_internal(SEXP inFileSEXP, SEXP outFilePathSEXP, SEXP autoAddInterceptSEXP, SEXP nIterSEXP, SEXP nChainsSEXP, SEXP seedSEXP, SEXP methodSEXP) {
+int rHESS_SEM_internal(std::string inFile, std::string outFilePath, bool autoAddIntercept, std::string gammaInit, unsigned int nIter, unsigned int nChains, unsigned long long seed, int method);
+RcppExport SEXP _rBSEM_rHESS_SEM_internal(SEXP inFileSEXP, SEXP outFilePathSEXP, SEXP autoAddInterceptSEXP, SEXP gammaInitSEXP, SEXP nIterSEXP, SEXP nChainsSEXP, SEXP seedSEXP, SEXP methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::string >::type inFile(inFileSEXP);
     Rcpp::traits::input_parameter< std::string >::type outFilePath(outFilePathSEXP);
     Rcpp::traits::input_parameter< bool >::type autoAddIntercept(autoAddInterceptSEXP);
+    Rcpp::traits::input_parameter< std::string >::type gammaInit(gammaInitSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type nIter(nIterSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type nChains(nChainsSEXP);
     Rcpp::traits::input_parameter< unsigned long long >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< int >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, nIter, nChains, seed, method));
+    rcpp_result_gen = Rcpp::wrap(rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, gammaInit, nIter, nChains, seed, method));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rBSEM_rHESS_SEM_internal", (DL_FUNC) &_rBSEM_rHESS_SEM_internal, 7},
+    {"_rBSEM_rHESS_SEM_internal", (DL_FUNC) &_rBSEM_rHESS_SEM_internal, 8},
     {NULL, NULL, 0}
 };
 

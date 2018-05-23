@@ -20,10 +20,10 @@
 
 // [[Rcpp::export]]
 int rHESS_SEM_internal(std::string inFile, std::string outFilePath, bool autoAddIntercept,
-                       unsigned int nIter=10, unsigned int nChains=1, 
+                       std::string gammaInit = "S", unsigned int nIter=10, unsigned int nChains=1, 
                        unsigned long long seed = 0, int method = 0){
   
-  int status = run_HESS(inFile, outFilePath, autoAddIntercept, nIter, nChains, seed, method);
+  int status = run_HESS(inFile, outFilePath, autoAddIntercept, gammaInit, nIter, nChains, seed, method);
   
   // Exit
   return status;

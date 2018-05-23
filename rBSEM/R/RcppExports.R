@@ -13,7 +13,7 @@
 #' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method
 NULL
 
-rHESS_SEM_internal <- function(inFile, outFilePath, autoAddIntercept, nIter = 10L, nChains = 1L, seed = 0L, method = 0L) {
-    .Call('_rBSEM_rHESS_SEM_internal', PACKAGE = 'rBSEM', inFile, outFilePath, autoAddIntercept, nIter, nChains, seed, method)
+rHESS_SEM_internal <- function(inFile, outFilePath, autoAddIntercept, gammaInit = "S", nIter = 10L, nChains = 1L, seed = 0L, method = 0L) {
+    .Call('_rBSEM_rHESS_SEM_internal', PACKAGE = 'rBSEM', inFile, outFilePath, autoAddIntercept, gammaInit, nIter, nChains, seed, method)
 }
 
