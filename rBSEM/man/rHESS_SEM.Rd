@@ -21,6 +21,8 @@ rHESS_SEM(inFile, blockList, varType = NULL, SEMGraph, outFilePath = "",
 
 \item{autoAddIntercept}{should the c++ code automatically add an intercept to every equation?}
 
+\item{gammaInit}{should gamma be initialised as all-zeros ("S0"), all ones ("S1") or randomly ("R")?}
+
 \item{nIter}{number of iterations}
 
 \item{nChains}{number of parallel chains to run}

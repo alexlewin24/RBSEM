@@ -7,6 +7,12 @@
 #' @param nIterations number of iteration produced by rHESS_SEM
 #' @param nPredictors number of predictors expected
 #' 
+#' @examples 
+#'\dontrun{
+#'mcmc_gamma_1 = rBSEM::traceToArray(fileName = 
+#'   "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = 20000)
+#'apply( mcmc_gamma_1 , 1:2 , mean )
+#'}
 #' @export
 traceToArray = function(fileName, nIterations = NULL, nPredictors = NULL){
   

@@ -204,10 +204,14 @@ In order to aid the imputation algorithm a further vector `varType` of "*type* l
 
 For all these parameters some sanity checks are in place and should give an indication of what changes are needed in order for the inputs to be correct.
 
-### `autoAddIntercept` and `method` arguments
+### `autoAddIntercept`, `gammaInit` and `method` arguments
 
 Generally, unless all the outcomes have been standardized, we'd like to always include an intercept term for each equation. This translates to adding to each $A_{1:n,k}$ a column of `1`s. In the software this can also be accomplished by creating one such column in the data matrix, and create a by-itself *required* block of only one variable that connects to each outcome.
 By specifying `autoAddIntercept = TRUE` while calling the `rHESS_SEM` function the software will automatically take care of that,but a user requiring more flexibility (perhaps because only some of the outcomes are standardized) will need to set `autoAddIntercept` to `FALSE` and manually add the corresponding column vector in the data file, its block in `blockList` and its row/column in `SEMGraph` with `2`s on the row as required.
+
+By setting `gammaInit` the user is able to decide how to initialise the gamma matrix, ginving the starting point of the MCMC.
+
+This is achieved by passing "1" to get them all to start from 1 (meaning that all the variables will be included at the start), "0" (the opposite, only the compulsory variables will be included) or "R" for a random initialisation (care is needed if fixing the `seed` parameter in this last case).
 
 The `method` parameter instead specify the sampler used for the binary matrices $\Gamma_k$, with `method=0` being the traditional "$MC^3$" Metropolis-Hastings sampler where at each iteration a certain number of coefficient are randomly proposed a switch to `0` or `1` (one at a time) and accepted/rejected according to the corresponding likelihood; `method=1` is a novel binary sampler by Banterle, Lewin (details and preprint available soon).
 
@@ -221,6 +225,12 @@ These arguments have default values, meaning that if you want the intercepts to 
 As of now the software outputs the average values of all the $\Gamma_k$ for the *optional* predictors of the first (untempered) chain in txt files called `[dataFileName]_HESS_gamma_[k]_out.txt` . 
 
 Each element of (each of) the matrix contains the posterior inclusion probability of the corresponding element of $\Gamma_{k}$ restricted to the *optional* variables.
+
+Some other output files produced are:
+
++ `[dataFileName]_HESS_gamma_[k]_MCMC_out.txt` files, that contain the whole MCMC trace of $\Gamma_{k}$, can be used to check convergence of the MCMC amongst other things.
+
++ one `[dataFileName]_HESS_logP_out.txt` file, that contains the overall log posterior probability at each step of the MCMC; This is also possibly an indicator of convergence (unless the chain got stuck in a local maximum) and should also be useful in selecting a possible best model.
 
 ## Running the software
 
@@ -298,14 +308,14 @@ if(na){
 }
 
 #### Now build the software arguments
-block_idx = c(rep(1,s_1),rep(2,s_2),rep(0,p))
+
 ### list all the blocks
 ## starting from the Xs but that's arbitrary
 
 blockL = list( 
-  c(9:28),  ## x0 -- block 0
-  c(1:5),  ## y1 -- block 1
-  c(6:8)  ## y2 -- block 2
+  c(9:28),  ## x0 -- block 1
+  c(1:5),  ## y1 -- block 2
+  c(6:8)  ## y2 -- block 3
 )
 
 ### then the graph structure
@@ -332,14 +342,16 @@ if(na){
 }
 
 ## Now call the function (assuming the rBSEM package is correctly installed)
+nIter = 20000
+
 if(!na){
   load("data/sample_data.RData")
   rBSEM::rHESS_SEM(inFile="data/sem_data.txt",blockList = blockL,
-                   SEMGraph = G,outFilePath="data/",nIter=20000, method=1, nChains = 4)
+                   SEMGraph = G,outFilePath="data/",nIter=nIter, method=1, nChains = 4)
 }else{
   load("data/na_sample_data.RData")
   rBSEM::rHESS_SEM(inFile="data/na_sem_data.txt",blockList = blockL,
-                   SEMGraph = G,outFilePath="data/",nIter=20000, method=1, nChains = 4)
+                   SEMGraph = G,outFilePath="data/",nIter=nIter, method=1, nChains = 4)
 }
 
 
@@ -347,11 +359,11 @@ if(!na){
 greyscale = grey((0:1000)/1000)
 
 if(!na){
-  est_gamma_1 = as.matrix( read.table("data/sem_data_HESS_gamma_0_out.txt") )
-  est_gamma_2 = as.matrix( read.table("data/sem_data_HESS_gamma_1_out.txt") )
+  est_gamma_1 = as.matrix( read.table("data/sem_data_HESS_gamma_1_out.txt") )
+  est_gamma_2 = as.matrix( read.table("data/sem_data_HESS_gamma_2_out.txt") )
 }else{
-  est_gamma_1 = as.matrix( read.table("data/na_sem_data_HESS_gamma_0_out.txt") )
-  est_gamma_2 = as.matrix( read.table("data/na_sem_data_HESS_gamma_1_out.txt") )
+  est_gamma_1 = as.matrix( read.table("data/na_sem_data_HESS_gamma_1_out.txt") )
+  est_gamma_2 = as.matrix( read.table("data/na_sem_data_HESS_gamma_2_out.txt") )
 }
 
 ## Note that there's correlation between X and y_1 so y_1 + x has some collienearity,
@@ -361,5 +373,25 @@ par(mfrow=c(2,2))
 image(est_gamma_1,col=greyscale); image(gamma_1[-1,],col=greyscale)
 image(est_gamma_2,col=greyscale); image(gamma_2[-1,],col=greyscale)
 par(mfrow=c(1,1))
+
+## check the behaviour of the logPosterior over the course of the chain
+plot(scan("data/sem_data_HESS_logP_out.txt"),type="l")
+
+# maybe of just the second half?
+plot(scan("data/sem_data_HESS_logP_out.txt")[(nIter/2):nIter],type="l")
+
+```
+
+In order to help in re-structuring the MCMC trace files to manageable array, the package contains a `traceToArray` function, whose documentation can be accessed via `?rBSEM::traceToArray`.
+
+After the transformation the array should contain `nIterations` slices (*i.e.* elements accessed via `array[,,i]`), each with the same dimensions of $\Gamma_k$.
+
+An example use of it is given below:
+
+```{r,eval=FALSE}
+mcmc_gamma_1 = rBSEM::traceToArray(fileName = "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = nIter)
+
+# this below should return the same matrix as `est_gamma_1`
+apply( mcmc_gamma_1 , 1:2 , mean )
 
 ```

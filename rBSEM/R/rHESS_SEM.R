@@ -11,6 +11,7 @@
 #' @param nIter number of iterations
 #' @param nChains number of parallel chains to run
 #' @param autoAddIntercept should the c++ code automatically add an intercept to every equation?
+#' @param gammaInit should gamma be initialised as all-zeros ("S0"), all ones ("S1") or randomly ("R")?
 #' @param seed pRNG seed
 #' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method
 #' @examples

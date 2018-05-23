@@ -19,3 +19,10 @@ Transform the MCMC trace file resulting from calling rHESS_SEM into a manageable
 \details{
 rBSEM -- Bayesian Structural Equation Models Regression
 }
+\examples{
+\dontrun{
+mcmc_gamma_1 = rBSEM::traceToArray(fileName = 
+  "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = 20000)
+apply( mcmc_gamma_1 , 1:2 , mean )
+}
+}
