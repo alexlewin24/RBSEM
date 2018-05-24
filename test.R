@@ -41,15 +41,16 @@ install.packages("rBSEM_0.1.1.tar.gz", repos = NULL, type="source")
 # browseVignettes("rBSEM")
 
 na = FALSE
+nIter = 10000
 
 if(!na){
   load("data/sample_data.RData")
   rBSEM::rHESS_SEM(inFile="data/sem_data.txt",blockList = blockL,
-                   SEMGraph = G,outFilePath="data/",nIter=20000, method=1, nChains = 4)
+                   SEMGraph = G,outFilePath="data/",nIter=nIter, method=1, nChains = 4)
 }else{
   load("data/na_sample_data.RData")
   rBSEM::rHESS_SEM(inFile="data/na_sem_data.txt",blockList = blockL,
-                   SEMGraph = G,outFilePath="data/",nIter=20000, method=1, nChains = 4)
+                   SEMGraph = G,outFilePath="data/",nIter=nIter, method=1, nChains = 4)
 }
 
 
@@ -72,6 +73,6 @@ par(mfrow=c(1,1))
 
 # mcmc_gamma_1 = rBSEM::traceToArray(fileName = "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = 20000)
 # apply( mcmc_gamma_1 , 1:2 , mean )
-# plot(scan("data/sem_data_HESS_logP_out.txt"),type="l")
+# plot(scan("data/sem_data_HESS_logP_out.txt")[(nIter/2):nIter],type="l")
 
 

@@ -77,11 +77,12 @@ namespace Utils{
 			while( arma::any( arma::find(blockIndexes < 0)) )
 			{
 				shedIdx = arma::as_scalar(arma::find(blockIndexes < 0 , 1 , "first"));
-				data.shed_col( shedIdx );
-				blockIndexes.shed_col( shedIdx ); //shed the blockIdx as well!
-				
 				if(varType.n_elem == data.n_cols)
 				    varType.shed_col( shedIdx ); //shed the varType as well!
+
+				// then shed the rest				
+				data.shed_col( shedIdx );
+				blockIndexes.shed_col( shedIdx ); //shed the blockIdx as well!
 			}
 
 			// miscellanea variables

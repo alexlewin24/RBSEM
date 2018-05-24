@@ -69,8 +69,8 @@ block_idx = c(rep(1,s_1),rep(2,s_2),rep(0,p))
 
 blockL = list( 
   c(9:28),  ## x0 -- block 0
-  c(1:5),  ## y1 -- block 1
-  c(6:8)  ## y2 -- block 2
+  c(1:3,5),  ## y1 -- block 1
+  c(6:8,4)  ## y2 -- block 2
 )
 
 ### then the graph structure

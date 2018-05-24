@@ -62,7 +62,7 @@ rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", 
         stop("blockList indexes provided outside the range in the data matrix!")
       }else{
         if( max(unlist(blockList) ) < length(dataHeader) ){
-          blockIndexes = c(blockIndexes,rep(-1, length(dataHeader) - length(blockList) ) )
+          blockIndexes = c(blockIndexes,rep(-1, length(dataHeader) - length(blockIndexes) ) )
         }
         # else is fine, it means they're equal
       }
