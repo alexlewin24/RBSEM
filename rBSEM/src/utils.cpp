@@ -72,17 +72,19 @@ namespace Utils{
 				return false;
 			}
 
+				std::cout << "blkIdx: " << blockIndexes.t() << std::endl;
 			// all the columns with blockIndex = -1 can be deleted
 			arma::uword shedIdx;
 			while( arma::any( arma::find(blockIndexes < 0)) )
 			{
 				shedIdx = arma::as_scalar(arma::find(blockIndexes < 0 , 1 , "first"));
+				
 				if(varType.n_elem == data.n_cols)
-				    varType.shed_col( shedIdx ); //shed the varType as well!
+				    varType.shed_row( shedIdx ); //shed the varType as well!
 
 				// then shed the rest				
 				data.shed_col( shedIdx );
-				blockIndexes.shed_col( shedIdx ); //shed the blockIdx as well!
+				blockIndexes.shed_row( shedIdx ); //shed the blockIdx as well!
 			}
 
 			// miscellanea variables
