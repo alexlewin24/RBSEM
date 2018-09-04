@@ -112,6 +112,11 @@ namespace Model{
 						const unsigned int nChains, const unsigned int nGlobalUpdates,					// hyper tuning pars
 						double& accCountGlobalUpdates, unsigned int& countGlobalUpdates);
 
+  std::vector<arma::mat> sampleBeta( arma::mat& data,
+          const std::vector<arma::uvec>& outcomesIdx, const std::vector<arma::uvec>& fixedPredictorsIdx, 
+          const std::vector<arma::uvec>& vsPredictorsIdx,
+          const std::vector<arma::ucube>& gamma_state, const double a_r_0, const double b_r_0, const std::vector<arma::mat>& W_0 );
+
 }
 
 #endif

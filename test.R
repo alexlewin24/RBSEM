@@ -33,7 +33,7 @@ devtools::document("rBSEM")
 # devtools::test(pkg = "rBSEM")
 # devtools::check("rBSEM", cran=TRUE)
 devtools::build("rBSEM",vignettes=TRUE)
-install.packages("rBSEM_0.1.1.tar.gz", repos = NULL, type="source")
+install.packages("rBSEM_0.1.2.tar.gz", repos = NULL, type="source")
 
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")
@@ -60,14 +60,27 @@ greyscale = grey((0:1000)/1000)
 if(!na){
   est_gamma_1 = as.matrix( read.table("data/sem_data_HESS_gamma_1_out.txt") )
   est_gamma_2 = as.matrix( read.table("data/sem_data_HESS_gamma_2_out.txt") )
+  
+  est_beta_1 = as.matrix( read.table("data/sem_data_HESS_beta_1_out.txt") )
+  est_beta_2 = as.matrix( read.table("data/sem_data_HESS_beta_2_out.txt") )
+  
 }else{
   est_gamma_1 = as.matrix( read.table("data/na_sem_data_HESS_gamma_1_out.txt") )
   est_gamma_2 = as.matrix( read.table("data/na_sem_data_HESS_gamma_2_out.txt") )
+  
+  est_beta_1 = as.matrix( read.table("data/na_sem_data_HESS_beta_1_out.txt") )
+  est_beta_2 = as.matrix( read.table("data/na_sem_data_HESS_beta_2_out.txt") )
 }
 
 par(mfrow=c(2,2))
 image(est_gamma_1,col=greyscale); image(gamma_1[-1,],col=greyscale)
 image(est_gamma_2,col=greyscale); image(gamma_2[-1,],col=greyscale)
+par(mfrow=c(1,1))
+
+
+par(mfrow=c(2,2))
+image(est_beta_1,col=greyscale); image(b_1*gamma_1,col=greyscale)
+image(est_beta_2,col=greyscale); image(b_2*gamma_2,col=greyscale)
 par(mfrow=c(1,1))
 
 

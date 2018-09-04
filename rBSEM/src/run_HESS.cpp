@@ -496,6 +496,29 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		mcmc_gamma_out_batch[k].slice(0) = gamma_state[k].slice(0); // out var for the gammas
 	}
 
+	// beta output
+	std::vector<arma::mat> beta_out(nEquations);
+	std::vector<arma::umat> beta_out_count(nEquations);
+
+	for( unsigned int k=0; k<nEquations; ++k)
+	{
+		beta_out[k] = arma::zeros<arma::mat>(nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k));
+		beta_out_count[k] = arma::zeros<arma::umat>(nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k));
+	}
+	
+	std::vector<arma::mat> sampledBeta = 
+		Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
+				a_r_0, b_r_0, W_0 );
+
+
+	for( unsigned int k=0; k<nEquations; ++k)
+	{
+		beta_out[k] += sampledBeta[k];
+		beta_out_count[k].submat(0,0,nFIXPredictors(k)-1,nOutcomes(k)-1) += 1;
+		beta_out_count[k].submat(nFIXPredictors(k),0,nFIXPredictors(k)+nVSPredictors(k)-1,nOutcomes(k)-1) += 
+			gamma_state[k].slice(0);
+	}
+
 	// first output
 	logP=0.;
 	for( unsigned int k=0; k<nEquations; ++k)
@@ -531,11 +554,22 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 		// UPDATE OUTPUT STATE
 		logP = 0.;
+		sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
+				a_r_0, b_r_0, W_0 );
+
 		for( unsigned int k=0; k<nEquations; ++k)
 		{
 			gamma_out[k] += gamma_state[k].slice(0); // the result of the whole procedure is now my new mcmc point, so add that up
 			mcmc_gamma_out_batch[k].slice( iteration % 1000 ) = gamma_state[k].slice(0);
 			logP += logPrior_state[k](0) + logLik_state[k](0);
+
+			beta_out[k] += sampledBeta[k];
+
+
+			beta_out_count[k].submat(0,0,nFIXPredictors(k)-1,nOutcomes(k)-1) += 1;
+			beta_out_count[k].submat(nFIXPredictors(k),0,nFIXPredictors(k)+nVSPredictors(k)-1,nOutcomes(k)-1) += 
+				gamma_state[k].slice(0);
+
 		}		
 		logPFile << logP << " ";
 
@@ -627,6 +661,12 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 		// close the files
 		MCMCGammaFile[k].close();
+
+
+		// output betas
+		beta_out[k] = beta_out[k]/beta_out_count[k];
+		beta_out[k].save(outFilePath+inFile+"_HESS_beta_"+std::to_string(k+1)+"_out.txt",arma::raw_ascii);
+
 	}
 
 		logPFile << /*std::char_traits<char>::eof()*/ std::endl << std::flush;
