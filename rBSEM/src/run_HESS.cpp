@@ -474,7 +474,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_out.txt" , std::ios_base::trunc ); 
 		gammaOutFile.close();
 
-		MCMCGammaFile[k] = std::ofstream();
+		// MCMCGammaFile[k] = std::ofstream();
 		MCMCGammaFile[k].open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
 		// no closing since we're appending to these
 	}
