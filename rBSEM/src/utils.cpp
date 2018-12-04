@@ -72,7 +72,7 @@ namespace Utils{
 				return false;
 			}
 
-				std::cout << "blkIdx: " << blockIndexes.t() << std::endl;
+				// std::cout << "blkIdx: " << blockIndexes.t() << std::endl;
 			// all the columns with blockIndex = -1 can be deleted
 			arma::uword shedIdx;
 			while( arma::any( arma::find(blockIndexes < 0)) )

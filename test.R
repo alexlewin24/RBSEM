@@ -27,6 +27,8 @@ use_rcpp()
 
 
 library(devtools)
+
+
 # better build routine
 remove.packages("rBSEM")
 devtools::has_devel()
