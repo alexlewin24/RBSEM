@@ -6,7 +6,11 @@ int run_HESS(std::string inFile, std::string outFilePath,
              unsigned long long seed, int method)
 {
 
+	std::cout << "rBSEM -- Bayesian Structural Equation Modelling" << std::endl;
+	#ifdef _OPENMP
+	std::cout << "Using OpenMP" << std::endl;
 	omp_init_lock(&RNGlock);  // init RNG lock for the parallel part
+	#endif
 
 	// ###########################################################
 	// ###########################################################
@@ -198,10 +202,16 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	
 	// ############# Init the RNG generator/engine
 	std::random_device r;
-	unsigned int nThreads = omp_get_max_threads();
+	
+	unsigned int nThreads=1;
+	#ifdef _OPENMP
+	nThreads = omp_get_max_threads();
+	#endif
 	if(nChains < nThreads)
 		nThreads = nChains;
+	#ifdef _OPENMP
 	omp_set_num_threads(nThreads);
+	#endif
 
 	rng = std::vector<std::mt19937_64>(nThreads); //.reserve(nThreads);  // reserve the correct space for the vector of rng engines
 	std::seed_seq seedSeq;	// and declare the seedSequence

@@ -5,9 +5,10 @@
 #include "HESS.h"
 #include <armadillo>
 #include <cmath>
-#include <omp.h>
 
+#ifdef _OPENMP
 extern omp_lock_t RNGlock; //defined in global.h
+#endif
 
 namespace Model
 {
@@ -52,8 +53,10 @@ namespace Model
 
 		logP = -log(M_PI)*((double)n*(double)s*0.5); // initialise with the normalising constant remaining from the likelhood
 
-omp_set_lock(&RNGlock); // for some reason now I need to set a lock here or other threads will interfere.... 
-// TODO, is it more beneficial to have parallel chains and sequential likelihood or viceversa?
+		#ifdef _OPENMP
+		omp_set_lock(&RNGlock); // for some reason now I need to set a lock here or other threads will interfere.... 
+		#endif
+		// TODO, is it more beneficial to have parallel chains and sequential likelihood or viceversa?
 
 		for(unsigned int l=0; l<s; ++l) // for each univaraite outcome ..
 		{
@@ -84,10 +87,11 @@ omp_set_lock(&RNGlock); // for some reason now I need to set a lock here or othe
 			logP += std::lgamma(a_r_n) - std::lgamma(a_r_0);
 		}
 
-omp_unset_lock(&RNGlock);
+		#ifdef _OPENMP
+		omp_unset_lock(&RNGlock);
+		#endif
 
 		return logP/temp;
-
 	}
 
 
@@ -258,11 +262,7 @@ omp_unset_lock(&RNGlock);
 		unsigned int p = gamma_curr.n_rows;
 		unsigned int s = gamma_curr.n_cols;
 		arma::imat predUpdate;       // which predictor are we updating?
-		arma::uword outUpdate; 		 // which outcome?
 		
-		double logPrior_prop, logLik_prop;
-		double logAccProb;
-
 		predUpdate = arma::join_rows( Distributions::randIntUniform(nUpdates, 0,p-1) , Distributions::randIntUniform(nUpdates,0,s-1) );    // note that I might be updating multiple times the same coeff
 		
 		double a,b;
@@ -460,7 +460,7 @@ omp_unset_lock(&RNGlock);
 	{
 
 		double pExchange;
-		unsigned int chainIdx, firstChain, secondChain;
+		unsigned int firstChain, secondChain;
 
 		arma::mat omegaSwap;
 		arma::umat gammaSwap;
@@ -548,7 +548,9 @@ omp_unset_lock(&RNGlock);
 		pExchange(tabIndex) = 0.; // these are log probabilities, remember!
 		tabIndex++;
 
+		#ifdef _OPENMP
 		#pragma omp parallel for private(tabIndex, firstChain, secondChain)
+		#endif
 		for(tabIndex = 1; tabIndex <= ((nChains)*(nChains-1)/2); ++tabIndex)
 		{
 
@@ -1018,89 +1020,94 @@ void adapCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
 					std::vector<unsigned int>& countGlobalUpdates, std::vector<double>& accCountGlobalUpdates,
 					const double maxTemperature, arma::vec& temperatureRatio, const double deltaTempRatio)
 	{
-		// This function will take care of all the local AND global moves for all the chains
-
-	  unsigned int nThreads = omp_get_max_threads();
-	  unsigned int nChains = omega_state[0].n_slices;
-	  unsigned int nEquations = outcomesIdx.size();
-	  
-	  for(unsigned int k=0; k < nEquations ; ++k){
-	    
-	      switch(method){
-	      
-	      case 0:
-          	#pragma omp parallel for num_threads(nThreads)
-			for(unsigned int m=0; m<nChains ; ++m)
+	// This function will take care of all the local AND global moves for all the chains
+		#ifdef _OPENMP
+	  	unsigned int nThreads = omp_get_max_threads();
+		#endif
+		unsigned int nChains = omega_state[0].n_slices;
+		unsigned int nEquations = outcomesIdx.size();
+		
+		for(unsigned int k=0; k < nEquations ; ++k){
+			
+			switch(method){
+			
+			case 0:
+				#ifdef _OPENMP
+				#pragma omp parallel for num_threads(nThreads)
+				#endif	
+				for(unsigned int m=0; m<nChains ; ++m)
+				{
+					Model::MC3_SUR_MCMC_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k],
+									omega_state[k].slice(m),gamma_state[k].slice(m),
+									logPrior_state[k](m),logLik_state[k](m),
+									a_r_0, b_r_0, W_0[k], a_0[k], b_0[k], accCount(k,m), 
+									nUpdates, temp[k](m));
+				} // end parallel updates
+			break; // end case 0 
+				
+			case 1:
+				#ifdef _OPENMP
+				#pragma omp parallel for num_threads(nThreads)
+				#endif
+				for(unsigned int m=0; m<nChains ; ++m)
+				{
+					Model::bandit_SUR_MCMC_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k],
+									omega_state[k].slice(m),gamma_state[k].slice(m),
+									logPrior_state[k](m),logLik_state[k](m),
+									a_r_0, b_r_0, W_0[k], a_0[k], b_0[k], 
+									accCount(k,m), nUpdates, temp[k](m),
+									zeta[k].slice(m), alpha_z[k].slice(m), beta_z[k].slice(m), 
+									mismatch[k](m), normalised_mismatch[k](m),
+									normalised_mismatch_backwards[k](m));
+				} // end parallel updates
+				break; // end case 1
+						
+			}
+			
+			// ####################
+			// Global moves
+			
+			if(nChains>1)
 			{
-				Model::MC3_SUR_MCMC_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k],
-								omega_state[k].slice(m),gamma_state[k].slice(m),
-								logPrior_state[k](m),logLik_state[k](m),
-								a_r_0, b_r_0, W_0[k], a_0[k], b_0[k], accCount(k,m), 
-								nUpdates, temp[k](m));
-			} // end parallel updates
-          break; // end case 0 
-	        
-	      case 1:
-          	#pragma omp parallel for num_threads(nThreads)
-	        for(unsigned int m=0; m<nChains ; ++m)
-	        {
-            	Model::bandit_SUR_MCMC_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k],
-                                  omega_state[k].slice(m),gamma_state[k].slice(m),
-                                  logPrior_state[k](m),logLik_state[k](m),
-                                  a_r_0, b_r_0, W_0[k], a_0[k], b_0[k], 
-                                  accCount(k,m), nUpdates, temp[k](m),
-                                  zeta[k].slice(m), alpha_z[k].slice(m), beta_z[k].slice(m), 
-                                  mismatch[k](m), normalised_mismatch[k](m),
-                                  normalised_mismatch_backwards[k](m));
-          	} // end parallel updates
-	        break; // end case 1
-					
-	      }
-	      
-	      // ####################
-        // Global moves
-        
-        if(nChains>1)
-        {
-          Model::MCMC_Global_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k], k,
-                         omega_state[k], gamma_state[k],logPrior_state[k], logLik_state[k],
-                         a_r_0, b_r_0, W_0[k], a_0[k], b_0[k],
-                         parCrossOver, covariatesCorrelation[k],
-                         nChains, nGlobalUpdates,accCountGlobalUpdates[k], countGlobalUpdates[k],
-                         temp[k]);
-          
-          
-          // ## Update temperature ladder
-          if ( Distributions::randIntUniform(0,9) == 0 ) //once every ten times on average
-          {
-            if( (accCountGlobalUpdates[k] / (double)countGlobalUpdates[k]) > 0.35 )
-            {
-              temperatureRatio(k) += deltaTempRatio;
-            }else{
-              temperatureRatio(k) = std::max( 1. , temperatureRatio(k)-deltaTempRatio );
-            }
-            
-            temperatureRatio(k) = std::min( temperatureRatio(k) , pow( maxTemperature, 1./( (double)nChains - 1.) ) );
-            
-            for(unsigned int m=1; m<nChains; ++m)
-            {
-              // untempered lik and prior
-              logLik_state[k](m) = logLik_state[k](m)*temp[k](m);
-              logPrior_state[k](m) = logPrior_state[k](m)*temp[k](m);
-              
-              temp[k](m) = std::min( maxTemperature, temp[k](m-1)*temperatureRatio(k) );
-              
-              // re-tempered lik and prior
-              logLik_state[k](m) = logLik_state[k](m)/temp[k](m);
-              logPrior_state[k](m) = logPrior_state[k](m)/temp[k](m);
-              
-            }
-          }
-          
-          
-        } //end Global move's section
-        
-       } // end block update
+			Model::MCMC_Global_step(data, outcomesIdx[k], fixedPredictorsIdx[k], vsPredictorsIdx[k], k,
+							omega_state[k], gamma_state[k],logPrior_state[k], logLik_state[k],
+							a_r_0, b_r_0, W_0[k], a_0[k], b_0[k],
+							parCrossOver, covariatesCorrelation[k],
+							nChains, nGlobalUpdates,accCountGlobalUpdates[k], countGlobalUpdates[k],
+							temp[k]);
+			
+			
+			// ## Update temperature ladder
+			if ( Distributions::randIntUniform(0,9) == 0 ) //once every ten times on average
+			{
+				if( (accCountGlobalUpdates[k] / (double)countGlobalUpdates[k]) > 0.35 )
+				{
+				temperatureRatio(k) += deltaTempRatio;
+				}else{
+				temperatureRatio(k) = std::max( 1. , temperatureRatio(k)-deltaTempRatio );
+				}
+				
+				temperatureRatio(k) = std::min( temperatureRatio(k) , pow( maxTemperature, 1./( (double)nChains - 1.) ) );
+				
+				for(unsigned int m=1; m<nChains; ++m)
+				{
+				// untempered lik and prior
+				logLik_state[k](m) = logLik_state[k](m)*temp[k](m);
+				logPrior_state[k](m) = logPrior_state[k](m)*temp[k](m);
+				
+				temp[k](m) = std::min( maxTemperature, temp[k](m-1)*temperatureRatio(k) );
+				
+				// re-tempered lik and prior
+				logLik_state[k](m) = logLik_state[k](m)/temp[k](m);
+				logPrior_state[k](m) = logPrior_state[k](m)/temp[k](m);
+				
+				}
+			}
+			
+			
+			} //end Global move's section
+			
+		} // end block update
 
 	}
 
@@ -1117,7 +1124,6 @@ void adapCrossOver_step(arma::ucube& gamma_state, arma::cube& omega_state,
 		arma::uvec VS_IN, xVS_IN;
 		arma::vec tilde_B; 
 		arma::mat W_n; 
-		double a_r_n,b_r_n;
 		arma::mat XtX;
 		arma::uvec currentCol(1);
 		arma::uvec singleIdx_j(1);

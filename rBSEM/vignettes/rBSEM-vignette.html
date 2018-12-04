@@ -12,7 +12,7 @@
 
 <meta name="author" content="Marco Banterle" />
 
-<meta name="date" content="2018-05-23" />
+<meta name="date" content="2018-10-11" />
 
 <title>rBSEM - Bayesian Structural Equation Models</title>
 
@@ -70,7 +70,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">rBSEM - Bayesian Structural Equation Models</h1>
 <h4 class="author"><em>Marco Banterle</em></h4>
-<h4 class="date"><em>2018-05-23</em></h4>
+<h4 class="date"><em>2018-10-11</em></h4>
 
 
 
@@ -356,6 +356,7 @@ greyscale =<span class="st"> </span><span class="kw">grey</span>((<span class="d
 <span class="co"># maybe of just the second half?</span>
 <span class="kw">plot</span>(<span class="kw">scan</span>(<span class="st">&quot;data/sem_data_HESS_logP_out.txt&quot;</span>)[(nIter<span class="op">/</span><span class="dv">2</span>)<span class="op">:</span>nIter],<span class="dt">type=</span><span class="st">&quot;l&quot;</span>)</code></pre></div>
 <p>In order to help in re-structuring the MCMC trace files to manageable array, the package contains a <code>traceToArray</code> function, whose documentation can be accessed via <code>?rBSEM::traceToArray</code>.</p>
+<p>After the transformation the array should contain <code>nIterations</code> slices (<em>i.e.</em> elements accessed via <code>array[,,i]</code>), each with the same dimensions of <span class="math inline">\(\Gamma_k\)</span>.</p>
 <p>An example use of it is given below:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mcmc_gamma_<span class="dv">1</span> =<span class="st"> </span>rBSEM<span class="op">::</span><span class="kw">traceToArray</span>(<span class="dt">fileName =</span> <span class="st">&quot;data/sem_data_HESS_gamma_1_MCMC_out.txt&quot;</span>,<span class="dt">nIterations =</span> nIter)
 

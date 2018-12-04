@@ -26,6 +26,7 @@ use_rcpp()
 #  in R > rHESS_SEM(inFile="Data/sem_data.txt",outFilePath="Data/",nIter=20000)
 
 
+library(devtools)
 # better build routine
 remove.packages("rBSEM")
 devtools::has_devel()
@@ -33,15 +34,17 @@ devtools::document("rBSEM")
 # devtools::test(pkg = "rBSEM")
 # devtools::check("rBSEM", cran=TRUE)
 devtools::build("rBSEM",vignettes=TRUE)
-install.packages("rBSEM_0.1.2.tar.gz", repos = NULL, type="source")
+# install.packages("rBSEM_0.1.3.tar.gz", repos = NULL, type="source")
+devtools::install_local("rBSEM_0.1.3.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
 
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")
 
+
 # browseVignettes("rBSEM")
 
 na = FALSE
-nIter = 10000
+nIter = 1000
 
 if(!na){
   load("data/sample_data.RData")
