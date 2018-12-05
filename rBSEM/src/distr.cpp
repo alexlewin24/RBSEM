@@ -302,7 +302,7 @@ namespace Distributions{
 		#ifdef _OPENMP
 		return distr(rng[omp_get_thread_num()]);
 		#else
-		return = distr(rng[0]);
+		return distr(rng[0]);
 		#endif
 	}
 

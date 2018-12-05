@@ -30,14 +30,15 @@ library(devtools)
 
 
 # better build routine
-remove.packages("rBSEM")
 devtools::has_devel()
-devtools::document("rBSEM")
 # devtools::test(pkg = "rBSEM")
 # devtools::check("rBSEM", cran=TRUE)
+
+remove.packages("rBSEM")
+# devtools::document("rBSEM")
 devtools::build("rBSEM",vignettes=TRUE)
-# install.packages("rBSEM_0.1.3.tar.gz", repos = NULL, type="source")
-devtools::install_local("rBSEM_0.1.3.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
+# install.packages("rBSEM_0.1.4.tar.gz", repos = NULL, type="source")
+devtools::install_local("rBSEM_0.1.4.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
 
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")

@@ -37,6 +37,21 @@
 rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, gammaInit="S" ,nIter,  nChains=1, seed=0, method=1)
 {
   
+  # cleanup file PATHS
+  inFileLength = nchar(inFile)
+  if( inFileLength == 0 )
+    stop("Please provide a correct path to a plain-text (.txt) file")
+  
+  if( substr(inFile,1,1) == "~" )
+    inFile = path.expand(inFile)
+  
+  outFilePathLength = nchar(outFilePath)
+  if( outFilePathLength > 0 )
+  {
+    if( substr(outFilePath,outFilePathLength,outFilePathLength) != "/" )
+      paste( outFilePath , "/" , sep="" )
+  }
+  
   # blockList
   if( length(blockList) < 2 ){
     
