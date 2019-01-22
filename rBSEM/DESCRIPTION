@@ -1,8 +1,8 @@
 Package: rBSEM
 Type: Package
 Title: Bayesian Structural Equation Model Regression
-Version: 0.1.5
-Date: 2018-12-06
+Version: 0.1.6
+Date: 2019-01-22
 Authors@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre"))
 Maintainer@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre"))
 Description: Bayesian Structural Equation Model Regression with general variable selection

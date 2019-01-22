@@ -2,7 +2,7 @@ CC=g++
 OTHERDIR=rBSEM/src
 VPATH=$(OTHERDIR)
 CFLAGS=-c -Wall -std=c++11 -fopenmp -I$(OTHERDIR)/ #-O3 #commenting out -OX optimisation because of valgrind   (de-comment it once ready for production, 3fold decrease in runtime)
-LDFLAGS=-larmadillo -lpthread -llapack -lopenblas -fopenmp -lboost_system -lboost_filesystem
+LDFLAGS=-larmadillo -lpthread -lopenblas -fopenmp -lboost_system -lboost_filesystem #-llapack
 
 # LDFLAGS= -L/usr/lib/x86_64-linux-gnu/ -fopenmp -larmadillo -lnvblas -llapack -ltrng4
 

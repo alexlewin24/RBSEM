@@ -179,13 +179,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	           data.submat( completeCases , arma::join_cols( fixedPredictorsIdx[k], vsPredictorsIdx[k] ) ); // this is needed for crossover for example
 	  
 	  // now covariatesCorrelation, but only for the VS predictors
-	  tmpDiag = XtX.diag(); 
-	  tmpDiag.shed_rows(0,nFIXPredictors(k)-1);  // what's left should be the one corresp to vsPreds
-	  
-	  covariatesCorrelation[k] = 
-			arma::inv( arma::diagmat( arma::sqrt(tmpDiag) ) ) * 
-				XtX.submat(nFIXPredictors(k),nFIXPredictors(k),nFIXPredictors(k)+nVSPredictors(k)-1,nFIXPredictors(k)+nVSPredictors(k)-1) * 
-			arma::inv( arma::diagmat( arma::sqrt(tmpDiag) ) );
+	  covariatesCorrelation[k] = arma::cor( data.submat( completeCases , vsPredictorsIdx[k] ) ); 
 	  
 	}
 

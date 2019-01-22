@@ -37,8 +37,8 @@ devtools::has_devel()
 remove.packages("rBSEM")
 # devtools::document("rBSEM")
 devtools::build("rBSEM",vignettes=TRUE)
-# install.packages("rBSEM_0.1.5.tar.gz", repos = NULL, type="source")
-devtools::install_local("rBSEM_0.1.5.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
+# install.packages("rBSEM_0.1.6.tar.gz", repos = NULL, type="source")
+devtools::install_local("rBSEM_0.1.6.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
 
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")

@@ -29,6 +29,4 @@ int rHESS_SEM_internal(std::string inFile, std::string outFilePath, bool autoAdd
   // Exit
   return status;
   
-  // 	return Rcpp::List::create(Named("coef") = coef,
-  //                      Named("sderr")= sderr);
 }
