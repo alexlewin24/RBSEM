@@ -28,9 +28,9 @@ namespace Distributions{
 	{
 		std::uniform_real_distribution<> distr(0, std::nextafter(1, std::numeric_limits<double>::max())); // init U(0,1)
 		#ifdef _OPENMP
-		return distr(rng[omp_get_thread_num()]);
+		return log(distr(rng[omp_get_thread_num()]));
 		#else
-		return distr(rng[0]);
+		return log(distr(rng[0]));
 		#endif
 	}
 
