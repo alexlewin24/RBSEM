@@ -125,10 +125,12 @@ rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", 
 
   # check how burnin was given
   if ( burnin < 0 ){
-    stop("Burnin must be positive or 0!")
+    stop("Burnin must be positive or 0")
+  }else{ if ( burnin > nIter ){
+    stop("Burnin might ont be greater then nIter")
   }else{ if ( burnin < 1 ){ # given as a fraction
-    burnin = nIter * burnin # the zero case is taken into account here as well
-  }} # else assume is given as an absolute number
+    burnin = ceiling(nIter * burnin) # the zero case is taken into account here as well
+  }}} # else assume is given as an absolute number
   
   dir.create(outFilePath)
   
