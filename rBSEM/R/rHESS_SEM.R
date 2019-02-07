@@ -34,7 +34,7 @@
 #' unlink("tmp", recursive=TRUE)
 #' 
 #' @export
-rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, gammaInit="S" ,nIter,  nChains=1, seed=0, method=1)
+rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, gammaInit="S" ,nIter, burnin=0, nChains=1, seed=0, method=1)
 {
   
   # cleanup file PATHS
@@ -121,6 +121,14 @@ rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", 
       ## else is fine       
     }
   }
+
+
+  # check how burnin was given
+  if ( burnin < 0 ){
+    stop("Burnin must be positive or 0!")
+  }else{ if ( burnin < 1 ){ # given as a fraction
+    burnin = nIter * burnin # the zero case is taken into account here as well
+  }} # else assume is given as an absolute number
   
   dir.create(outFilePath)
   
@@ -129,7 +137,7 @@ rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", 
   write.table(varType,"tmp/varType.txt", row.names = FALSE, col.names = FALSE)
   write.table(SEMGraph,"tmp/SEMGraph.txt", row.names = FALSE, col.names = FALSE)
   
-  status = rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, gammaInit, nIter,  nChains, seed, method)
+  status = rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, gammaInit, nIter, burnin, nChains, seed, method)
 
   if(outFilePath != "tmp/")
     unlink("tmp",recursive = TRUE)

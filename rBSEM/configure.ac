@@ -31,7 +31,6 @@ AC_COMPILE_IFELSE(
 		AC_MSG_ERROR([Compiler not supported])])
 CXXFLAGS="$saved_cxxflags"
 
-
 # Check for OMP support
 AC_OPENMP
 

@@ -4,6 +4,7 @@ int main(int argc, char *  argv[])
 {
 
 	unsigned int nIter = 10; // default number of iterations
+	unsigned int burnin = 0;
 	unsigned int nChains = 1;
 	double deltaTempRatio = 1.;
 	int seed = 0;
@@ -40,6 +41,12 @@ int main(int argc, char *  argv[])
 		else if ( 0 == strcmp(argv[na],"--nIter") )
 		{
 			nIter = atoi(argv[++na]);
+			if (na+1==argc) break;
+			++na;
+		}
+		else if ( 0 == strcmp(argv[na],"--burnin") )
+		{
+			burnin = atoi(argv[++na]);
 			if (na+1==argc) break;
 			++na;
 		}
@@ -99,7 +106,7 @@ int main(int argc, char *  argv[])
     }//end reading from command line
 
 
-	int status= run_HESS(inFile, outFilePath, true, gammaInit, nIter, nChains, seed, method);
+	int status= run_HESS(inFile, outFilePath, true, gammaInit, nIter, burnin, nChains, seed, method);
 
 	// Exit
 	return status;

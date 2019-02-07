@@ -35,33 +35,33 @@ devtools::has_devel()
 # devtools::check("rBSEM", cran=TRUE)
 
 remove.packages("rBSEM")
-# devtools::document("rBSEM")
+Rcpp::compileAttributes(pkgdir = "rBSEM/"); devtools::document("rBSEM");
 devtools::build("rBSEM",vignettes=TRUE)
-# install.packages("rBSEM_0.1.6.tar.gz", repos = NULL, type="source")
-devtools::install_local("rBSEM_0.1.6.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
+# install.packages("rBSEM_0.1.7.tar.gz", repos = NULL, type="source")
+devtools::install_local("rBSEM_0.1.7.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
 
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")
 
-
 # browseVignettes("rBSEM")
 
 na = FALSE
-nIter = 1000
+nIter = 11000
+burnin = 500
 
 if(!na){
   load("data/sample_data.RData")
   rBSEM::rHESS_SEM(inFile="data/sem_data.txt",blockList = blockL,
-                   SEMGraph = G,outFilePath="data/",nIter=nIter, method=1, nChains = 4)
+                   SEMGraph = G,outFilePath="data/",nIter=nIter, burnin=burnin, method=1, nChains = 4)
 }else{
   load("data/na_sample_data.RData")
   rBSEM::rHESS_SEM(inFile="data/na_sem_data.txt",blockList = blockL,
-                   SEMGraph = G,outFilePath="data/",nIter=nIter, method=1, nChains = 4)
+                   SEMGraph = G,outFilePath="data/",nIter=nIter, burnin=burnin, method=1, nChains = 4)
 }
 
 
 ## then check some output
-greyscale = grey((0:1000)/1000)
+greyscale = grey((0:100)/100)
 
 if(!na){
   est_gamma_1 = as.matrix( read.table("data/sem_data_HESS_gamma_1_out.txt") )
@@ -90,8 +90,8 @@ image(est_beta_2,col=greyscale); image(b_2*gamma_2,col=greyscale)
 par(mfrow=c(1,1))
 
 
-# mcmc_gamma_1 = rBSEM::traceToArray(fileName = "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = 20000)
-# apply( mcmc_gamma_1 , 1:2 , mean )
-# plot(scan("data/sem_data_HESS_logP_out.txt")[(nIter/2):nIter],type="l")
+mcmc_gamma_1 = rBSEM::traceToArray(fileName = "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = nIter-burnin)
+apply( mcmc_gamma_1 , 1:2 , mean ) - est_gamma_1  # differences up to 1e-4 1e-5 might exist because of rounding errorwhile writing the average frm C++
+plot(scan("data/sem_data_HESS_logP_out.txt"),type="l")
 
 

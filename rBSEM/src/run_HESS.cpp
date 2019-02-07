@@ -2,7 +2,7 @@
 
 int run_HESS(std::string inFile, std::string outFilePath, 
 			bool autoAddIntercept, std::string gammaInit,
-             unsigned int nIter, unsigned int nChains,
+             unsigned int nIter, unsigned int burnin, unsigned int nChains,
              unsigned long long seed, int method)
 {
 
@@ -184,14 +184,14 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	}
 
 
-//   // check indexes
-//   for(unsigned int k=0; k<nEquations; ++k)
-//   {
-//     std::cout << " Indexes for block "<< k+1 << std::endl;
-//     std::cout << outcomesIdx[k].t() <<std::flush;
-//     std::cout << fixedPredictorsIdx[k].t() <<std::flush;
-//     std::cout << vsPredictorsIdx[k].t() <<std::endl;
-//   }
+	//   // check indexes
+	//   for(unsigned int k=0; k<nEquations; ++k)
+	//   {
+	//     std::cout << " Indexes for block "<< k+1 << std::endl;
+	//     std::cout << outcomesIdx[k].t() <<std::flush;
+	//     std::cout << fixedPredictorsIdx[k].t() <<std::flush;
+	//     std::cout << vsPredictorsIdx[k].t() <<std::endl;
+	//   }
 	
 	
 	// ############# Init the RNG generator/engine
@@ -488,19 +488,16 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	// Variable to hold the output to file ( current state )
 	double logP;
 	std::vector<arma::umat> gamma_out(nEquations);
-	for( unsigned int k=0; k<nEquations; ++k)
-		gamma_out[k] = gamma_state[k].slice(0); // out var for the gammas
-
 	// could use save but I need to sum and then normalise so I'd need to store another matrix for each...
 	std::vector<arma::ucube> mcmc_gamma_out_batch(nEquations);
-	
+	unsigned int batch_size { std::min((unsigned int)1000,nIter-burnin) };
 	for( unsigned int k=0; k<nEquations; ++k)
 	{
-		mcmc_gamma_out_batch[k] = arma::ucube(nVSPredictors(k),nOutcomes(k),std::min((unsigned int)1000,nIter));	
-		mcmc_gamma_out_batch[k].slice(0) = gamma_state[k].slice(0); // out var for the gammas
-	}
+		gamma_out[k] = arma::zeros<arma::umat>(nVSPredictors(k),nOutcomes(k));
+		mcmc_gamma_out_batch[k] = arma::ucube(nVSPredictors(k),nOutcomes(k),batch_size);	
+	}		
 
-	// beta output
+	// beta output init
 	std::vector<arma::mat> beta_out(nEquations);
 	std::vector<arma::umat> beta_out_count(nEquations);
 
@@ -510,30 +507,38 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		beta_out_count[k] = arma::zeros<arma::umat>(nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k));
 	}
 	
-	std::vector<arma::mat> sampledBeta = 
-		Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
+	std::vector<arma::mat> sampledBeta;
+
+
+	// first output
+	if( burnin == 0 )
+	{
+		sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
 				a_r_0, b_r_0, W_0 );
 
 
-	for( unsigned int k=0; k<nEquations; ++k)
-	{
-		beta_out[k] += sampledBeta[k];
-		beta_out_count[k].submat(0,0,nFIXPredictors(k)-1,nOutcomes(k)-1) += 1;
-		beta_out_count[k].submat(nFIXPredictors(k),0,nFIXPredictors(k)+nVSPredictors(k)-1,nOutcomes(k)-1) += 
-			gamma_state[k].slice(0);
+		for( unsigned int k=0; k<nEquations; ++k)
+		{
+			gamma_out[k] = gamma_state[k].slice(0); // out var for the gammas
+			mcmc_gamma_out_batch[k].slice(0) = gamma_state[k].slice(0); // out var for the gammas
+
+			beta_out[k] += sampledBeta[k];
+			beta_out_count[k].submat(0,0,nFIXPredictors(k)-1,nOutcomes(k)-1) += 1;
+			beta_out_count[k].submat(nFIXPredictors(k),0,nFIXPredictors(k)+nVSPredictors(k)-1,nOutcomes(k)-1) += 
+				gamma_state[k].slice(0);
+		}
+
+		logP=0.;
+		for( unsigned int k=0; k<nEquations; ++k)
+		{
+			gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_out.txt" , std::ios_base::trunc);
+			gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k])) << std::flush;
+			gammaOutFile.close();
+
+			logP += logPrior_state[k](0) + logLik_state[k](0);
+		}		
+		logPFile << logP << " ";
 	}
-
-	// first output
-	logP=0.;
-	for( unsigned int k=0; k<nEquations; ++k)
-	{
-		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_out.txt" , std::ios_base::trunc);
-		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k])) << std::flush;
-		gammaOutFile.close();
-
-		logP += logPrior_state[k](0) + logLik_state[k](0);
-	}		
-	logPFile << logP << " ";
 
 
 	// ###########################################################
@@ -558,24 +563,28 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 		// UPDATE OUTPUT STATE
 		logP = 0.;
-		sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
-				a_r_0, b_r_0, W_0 );
 
-		for( unsigned int k=0; k<nEquations; ++k)
+		if( iteration >= burnin )
 		{
-			gamma_out[k] += gamma_state[k].slice(0); // the result of the whole procedure is now my new mcmc point, so add that up
-			mcmc_gamma_out_batch[k].slice( iteration % 1000 ) = gamma_state[k].slice(0);
-			logP += logPrior_state[k](0) + logLik_state[k](0);
+			sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
+					a_r_0, b_r_0, W_0 );
 
-			beta_out[k] += sampledBeta[k];
+			for( unsigned int k=0; k<nEquations; ++k)
+			{
+				gamma_out[k] += gamma_state[k].slice(0); // the result of the whole procedure is now my new mcmc point, so add that up
+				mcmc_gamma_out_batch[k].slice( (iteration-burnin) % batch_size ) = gamma_state[k].slice(0);
+				logP += logPrior_state[k](0) + logLik_state[k](0);
+
+				beta_out[k] += sampledBeta[k];
 
 
-			beta_out_count[k].submat(0,0,nFIXPredictors(k)-1,nOutcomes(k)-1) += 1;
-			beta_out_count[k].submat(nFIXPredictors(k),0,nFIXPredictors(k)+nVSPredictors(k)-1,nOutcomes(k)-1) += 
-				gamma_state[k].slice(0);
+				beta_out_count[k].submat(0,0,nFIXPredictors(k)-1,nOutcomes(k)-1) += 1;
+				beta_out_count[k].submat(nFIXPredictors(k),0,nFIXPredictors(k)+nVSPredictors(k)-1,nOutcomes(k)-1) += 
+					gamma_state[k].slice(0);
 
-		}		
-		logPFile << logP << " ";
+			}		
+			logPFile << logP << " ";
+		}
 
 		// impute new data
 		if ( missingDataIndexes.n_elem > 0)
@@ -615,31 +624,29 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		}
 
 		// Output to files every now and then
-		if( (iteration+1) % (1000) == 0 )  //care, 1000 is hardcoded in a lot of places, either don't change or change everywhere
+		if( (iteration >= burnin) && ( (iteration-burnin+1) % batch_size == 0 ) ) 
 		{
+
 			for( unsigned int k=0; k<nEquations; ++k)
 			{
 				gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_out.txt" , std::ios_base::trunc);
-				gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)iteration+1.0) << std::flush;
+				gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)(nIter+1.0-burnin)) << std::flush;
 				gammaOutFile.close();
 
 				// output a batch of MCMC iterations
-
-				// MCMCGammaFile[k] << mcmc_gamma_out_batch[k] <<std::flush;
-				// mcmc_gamma_out_batch[k].raw_print(MCMCGammaFile[k]);
 				for( unsigned int slice=0, nSlices = mcmc_gamma_out_batch[k].n_slices; slice < nSlices; ++slice)
 				{
 					MCMCGammaFile[k] << mcmc_gamma_out_batch[k].slice(slice);
 				}
 				MCMCGammaFile[k] << std::flush;
 
-				// reset the batch
-				if( (nIter - (iteration + 1)) < 1000 )
+				// if we have less iter to go than the batch size ... 
+				if( (nIter - (iteration+ 1) ) < batch_size )
 				{
-					mcmc_gamma_out_batch[k].set_size( nVSPredictors(k),nOutcomes(k), nIter - (iteration + 1));	
+					// reset the batch
+					mcmc_gamma_out_batch[k].set_size( nVSPredictors(k),nOutcomes(k), nIter - (iteration + 1) );	
 				}
-				mcmc_gamma_out_batch[k].fill(2);
-
+				mcmc_gamma_out_batch[k].fill(2); // why? bah... to fill and maybecheck later
 			}
 		}
 
@@ -652,7 +659,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	for( unsigned int k=0; k<nEquations; ++k)
 	{
 		gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_out.txt" , std::ios_base::trunc);
-		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)nIter+1.0) << std::flush;
+		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)(nIter-burnin)) << std::flush;
 		gammaOutFile.close();
 	
 		// MCMCGammaFile[k] << mcmc_gamma_out_batch[k] << std::flush;
@@ -673,8 +680,8 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 	}
 
-		logPFile << /*std::char_traits<char>::eof()*/ std::endl << std::flush;
-		logPFile.close();
+	logPFile << /*std::char_traits<char>::eof()*/ std::endl << std::flush;
+	logPFile.close();
 
 	// Exit
 	return 0;
