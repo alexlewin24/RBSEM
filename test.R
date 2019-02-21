@@ -47,7 +47,7 @@ devtools::install_local("rBSEM_0.1.7.tar.gz",build_vignettes = TRUE,force=TRUE) 
 
 na = FALSE
 nIter = 11000
-burnin = 0.2
+burnin = 1000
 
 if(!na){
   load("data/sample_data.RData")

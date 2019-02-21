@@ -630,7 +630,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 			for( unsigned int k=0; k<nEquations; ++k)
 			{
 				gammaOutFile.open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_out.txt" , std::ios_base::trunc);
-				gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)(nIter+1.0-burnin)) << std::flush;
+				gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)(iteration+1.0-burnin)) << std::flush;
 				gammaOutFile.close();
 
 				// output a batch of MCMC iterations

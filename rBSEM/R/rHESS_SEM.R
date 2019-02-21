@@ -3,17 +3,18 @@
 #' @description
 #' Run a simple SEM Bayesian sampler
 #' @name rHESS_SEM
-#' @param inFile path to data file
-#' @param blockList list of blocks in the model
-#' @param varType variable type for each column in the data file
-#' @param SEMGraph graph adjacency matrix representing the SEM structure between the blocks
-#' @param outFilePath path to where the output is to be written
-#' @param nIter number of iterations
+#' @param inFile path to data file; plain text file with variables on the columns and observations on the rows 
+#' @param blockList list of blocks in the model; each element of the list contains the (column) indices of the variables in each block, with respect to the data file
+#' @param varType variable type for each column in the data file; coded as: 0 - continuous, 1- binary, 2 - categorical. Note that categorical variables cannot be imputed
+#' @param SEMGraph graph adjacency matrix representing the SEM structure between the blocks. Edges represented as 2 indicate variables that will be always included in the regression model
+#' @param outFilePath path to where the output files are to be written
+#' @param nIter number of iterations for the MCMC procedure
+#' @param burnin number of iterations (or fraction of iterations) to discard at the start of the chain
 #' @param nChains number of parallel chains to run
-#' @param autoAddIntercept should the c++ code automatically add an intercept to every equation?
-#' @param gammaInit should gamma be initialised as all-zeros ("S0"), all ones ("S1") or randomly ("R")?
+#' @param autoAddIntercept should the c++ code automatically add an intercept to every equation? Default: TRUE
+#' @param gammaInit gamma initialisation to either all-zeros ("0"), all ones ("1"), randomly ("R") or (default) MLE-informed ("MLE").
 #' @param seed pRNG seed
-#' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method
+#' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^3}{MC^3} and 1=Thompson-sampling inspired novel method
 #' @examples
 #' require(utils)
 #' dir.create("tmp")

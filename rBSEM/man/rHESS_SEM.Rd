@@ -9,27 +9,29 @@ rHESS_SEM(inFile, blockList, varType = NULL, SEMGraph,
   burnin = 0, nChains = 1, seed = 0, method = 1)
 }
 \arguments{
-\item{inFile}{path to data file}
+\item{inFile}{path to data file; plain text file with variables on the columns and observations on the rows}
 
-\item{blockList}{list of blocks in the model}
+\item{blockList}{list of blocks in the model; each element of the list contains the (column) indices of the variables in each block, with respect to the data file}
 
-\item{varType}{variable type for each column in the data file}
+\item{varType}{variable type for each column in the data file; coded as: 0 - continuous, 1- binary, 2 - categorical. Note that categorical variables cannot be imputed}
 
-\item{SEMGraph}{graph adjacency matrix representing the SEM structure between the blocks}
+\item{SEMGraph}{graph adjacency matrix representing the SEM structure between the blocks. Edges represented as 2 indicate variables that will be always included in the regression model}
 
-\item{outFilePath}{path to where the output is to be written}
+\item{outFilePath}{path to where the output files are to be written}
 
-\item{autoAddIntercept}{should the c++ code automatically add an intercept to every equation?}
+\item{autoAddIntercept}{should the c++ code automatically add an intercept to every equation? Default: TRUE}
 
-\item{gammaInit}{should gamma be initialised as all-zeros ("S0"), all ones ("S1") or randomly ("R")?}
+\item{gammaInit}{gamma initialisation to either all-zeros ("0"), all ones ("1"), randomly ("R") or (default) MLE-informed ("MLE").}
 
-\item{nIter}{number of iterations}
+\item{nIter}{number of iterations for the MCMC procedure}
+
+\item{burnin}{number of iterations (or fraction of iterations) to discard at the start of the chain}
 
 \item{nChains}{number of parallel chains to run}
 
 \item{seed}{pRNG seed}
 
-\item{method}{\deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method}
+\item{method}{\deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^3}{MC^3} and 1=Thompson-sampling inspired novel method}
 }
 \description{
 Run a simple SEM Bayesian sampler
