@@ -471,6 +471,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	std::ofstream gammaOutFile; 
 	std::ofstream logPFile; 
 	std::vector<std::ofstream> MCMCGammaFile(nEquations); 
+	std::vector<std::ofstream> MCMCBetaFile(nEquations); 
 
 	// zero out files
 	for( unsigned int k=0; k<nEquations; ++k)
@@ -480,6 +481,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 		// MCMCGammaFile[k] = std::ofstream();
 		MCMCGammaFile[k].open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
+		MCMCBetaFile[k].open( outFilePath+inFile+"_HESS_beta_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
 		// no closing since we're appending to these
 	}
 
@@ -500,15 +502,16 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	// beta output init
 	std::vector<arma::mat> beta_out(nEquations);
 	std::vector<arma::umat> beta_out_count(nEquations);
+	std::vector<arma::cube> mcmc_beta_out_batch(nEquations);
 
 	for( unsigned int k=0; k<nEquations; ++k)
 	{
 		beta_out[k] = arma::zeros<arma::mat>(nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k));
 		beta_out_count[k] = arma::zeros<arma::umat>(nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k));
+		mcmc_beta_out_batch[k] = arma::cube(nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k),batch_size);
 	}
 	
 	std::vector<arma::mat> sampledBeta;
-
 
 	// first output
 	if( burnin == 0 )
@@ -516,16 +519,16 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
 				a_r_0, b_r_0, W_0 );
 
-
 		for( unsigned int k=0; k<nEquations; ++k)
 		{
 			gamma_out[k] = gamma_state[k].slice(0); // out var for the gammas
-			mcmc_gamma_out_batch[k].slice(0) = gamma_state[k].slice(0); // out var for the gammas
+			mcmc_gamma_out_batch[k].slice(0) = gamma_state[k].slice(0);
 
-			beta_out[k] += sampledBeta[k];
+			beta_out[k] += sampledBeta[k]; // out var for the betas
 			beta_out_count[k].submat(0,0,nFIXPredictors(k)-1,nOutcomes(k)-1) += 1;
 			beta_out_count[k].submat(nFIXPredictors(k),0,nFIXPredictors(k)+nVSPredictors(k)-1,nOutcomes(k)-1) += 
 				gamma_state[k].slice(0);
+			mcmc_beta_out_batch[k].slice(0) = sampledBeta[k];
 		}
 
 		logP=0.;
@@ -577,11 +580,11 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 				beta_out[k] += sampledBeta[k];
 
-
 				beta_out_count[k].submat(0,0,nFIXPredictors(k)-1,nOutcomes(k)-1) += 1;
 				beta_out_count[k].submat(nFIXPredictors(k),0,nFIXPredictors(k)+nVSPredictors(k)-1,nOutcomes(k)-1) += 
 					gamma_state[k].slice(0);
 
+				mcmc_beta_out_batch[k].slice( (iteration-burnin) % batch_size ) = sampledBeta[k];
 			}		
 			logPFile << logP << " ";
 		}
@@ -637,14 +640,17 @@ int run_HESS(std::string inFile, std::string outFilePath,
 				for( unsigned int slice=0, nSlices = mcmc_gamma_out_batch[k].n_slices; slice < nSlices; ++slice)
 				{
 					MCMCGammaFile[k] << mcmc_gamma_out_batch[k].slice(slice);
+					MCMCBetaFile[k] << mcmc_beta_out_batch[k].slice(slice);
 				}
 				MCMCGammaFile[k] << std::flush;
+				MCMCBetaFile[k] << std::flush;
 
 				// if we have less iter to go than the batch size ... 
 				if( (nIter - (iteration+ 1) ) < batch_size )
 				{
 					// reset the batch
 					mcmc_gamma_out_batch[k].set_size( nVSPredictors(k),nOutcomes(k), nIter - (iteration + 1) );	
+					mcmc_beta_out_batch[k].set_size( nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k), nIter - (iteration + 1) );	
 				}
 				mcmc_gamma_out_batch[k].fill(2); // why? bah... to fill and maybecheck later
 			}
@@ -662,16 +668,17 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		gammaOutFile << (arma::conv_to<arma::mat>::from(gamma_out[k]))/((double)(nIter-burnin)) << std::flush;
 		gammaOutFile.close();
 	
-		// MCMCGammaFile[k] << mcmc_gamma_out_batch[k] << std::flush;
-		// mcmc_gamma_out_batch[k].raw_print(MCMCGammaFile[k]);
 		for( unsigned int slice=0, nSlices = mcmc_gamma_out_batch[k].n_slices; slice < nSlices; ++slice)
 		{
 			MCMCGammaFile[k] << mcmc_gamma_out_batch[k].slice(slice);
+			MCMCBetaFile[k] << mcmc_beta_out_batch[k].slice(slice);
 		}
 		MCMCGammaFile[k] << std::flush;
+		MCMCBetaFile[k] << std::flush;
 
 		// close the files
 		MCMCGammaFile[k].close();
+		MCMCBetaFile[k].close();
 
 
 		// output betas

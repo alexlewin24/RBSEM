@@ -37,8 +37,8 @@ devtools::has_devel()
 remove.packages("rBSEM")
 Rcpp::compileAttributes(pkgdir = "rBSEM/"); devtools::document("rBSEM");
 devtools::build("rBSEM",vignettes=TRUE)
-# install.packages("rBSEM_0.1.7.tar.gz", repos = NULL, type="source")
-devtools::install_local("rBSEM_0.1.7.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
+# install.packages("rBSEM_0.1.8.tar.gz", repos = NULL, type="source")
+devtools::install_local("rBSEM_0.1.8.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
 
 # C Primer
 # source("testCpp.R"); cppPrimer(inFile="data/sem_data.txt",blockList = blockL,SEMGraph = G,outFilePath="data/")
@@ -46,8 +46,8 @@ devtools::install_local("rBSEM_0.1.7.tar.gz",build_vignettes = TRUE,force=TRUE) 
 # browseVignettes("rBSEM")
 
 na = FALSE
-nIter = 11000
-burnin = 1000
+nIter = 1100
+burnin = 100
 
 if(!na){
   load("data/sample_data.RData")

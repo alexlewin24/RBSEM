@@ -2,7 +2,7 @@ library(mvtnorm)
 library(MCMCpack)
 
 ## Do we want to generate data with missing values?
-na=TRUE
+na=FALSE
 
 ## Simulate a 2 block SEM
 n = 200
@@ -93,6 +93,14 @@ if(na){
   write.table(x=data,file="data/sem_data.txt",na = "NAN",col.names=FALSE,row.names=FALSE)
   save.image("data/sample_data.RData")
 }
+
+
+blockIndexes = rep(NA, max(unlist(blockList)))
+for( i in 1:length(blockList))
+  blockIndexes[blockList[[i]]] = i-1
+
+blockIndexes[is.na(blockIndexes)] = -1
+
 
 ## Note that there's correlation between X and y_1 so y_2 ~ y_1 + x has some collienearity
 
