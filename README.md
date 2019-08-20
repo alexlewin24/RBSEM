@@ -4,8 +4,6 @@
 
 ```
 install.packages("rBSEM_XXX.tar.gz", repos = NULL, type="source")
-or
-devtools::install_local("rBSEM_XXX.tar.gz",build_vignettes = TRUE,force=TRUE) # this one forces to build vignettes
 ```
 * see Vignette for how to run the software
 

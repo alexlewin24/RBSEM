@@ -63,12 +63,22 @@ namespace Model
 
 			VS_IN = arma::join_vert( fixedPredictorsIdx , vsPredictorsIdx( find(gamma.col(l) != 0) ) );
 	  
-	        xVS_IN = arma::join_vert( arma::regspace<arma::uvec>(0,fixedPredictorsIdx.n_elem-1) ,  // the fixed part
-                                fixedPredictorsIdx.n_elem + find(gamma.col(l) != 0) );  // the VS part
+			xVS_IN = arma::join_vert( arma::regspace<arma::uvec>(0,fixedPredictorsIdx.n_elem-1) ,  // the fixed part
+														fixedPredictorsIdx.n_elem + find(gamma.col(l) != 0) );  // the VS part
 		  
-			XtX = arma::trans( data.cols( VS_IN ) ) * data.cols( VS_IN );
+			XtX = data.cols( VS_IN ).t() * data.cols( VS_IN );
 
 			// hat_B = arma::inv_sympd(XtX) * arma::trans(X.cols(VS_IN)) * Y.col(l);
+			arma::mat debug = XtX + arma::inv_sympd( W_0(xVS_IN,xVS_IN) );
+			// if ( !debug.is_sympd() ){
+			// 	std::cout << "Warning: THIS IS NOT SYMPD!" << std::endl << debug << std::endl << std::endl;
+				
+			// 	std::cout << "VS_IN: " << VS_IN.t() << std::endl << "xVS_IN: " << xVS_IN.t() << std::endl << std::endl;
+				
+			// 	std::cout << "Data Matrix: " << std::endl << data.cols(VS_IN) << std::endl << std::endl;
+			// 	char c; std::cin >> c;
+			// }
+
 			W_n = arma::inv_sympd( XtX + arma::inv_sympd( W_0(xVS_IN,xVS_IN) ) );
 			tilde_B = W_n * ( arma::trans( data.cols(VS_IN) ) * data.col(outcomesIdx(l))  /* + W_0.i() * ZERO  */ );
 

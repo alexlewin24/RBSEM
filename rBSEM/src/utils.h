@@ -21,7 +21,17 @@ namespace Utils{
 	double logspace_add(const arma::vec& logv);
 	double logspace_add(double a,double b);
 
+	/*
+	Set difference between two arma vectors of indeces
+	*/
 	arma::uvec arma_setdiff_idx(const arma::uvec& x, const arma::uvec& y);
+	
+	
+	/*
+	Get the relative positions of the elements in x inside the vector y
+	if an element is not found, return an error
+	*/
+	arma::uvec arma_get_vec_idx(const arma::uvec& x, const arma::uvec& y);
 	
 }
 

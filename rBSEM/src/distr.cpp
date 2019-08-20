@@ -199,13 +199,9 @@ namespace Distributions{
 
 		//check
 		if(Sigma.n_rows != d || Sigma.n_cols != d )
-		{
-			std::cout << " Dimension not matching in the multivariate t sampler" << std::flush;
-			return 0; // ??? THROW EXCPTION
-		}
+			throw std::runtime_error("Dimension of Sigma not matching in the multivariate t sampler");
 
 		arma::rowvec res = randT(d,nu).t() * arma::chol(Sigma);
-
 		return res.t() + m;
 	}
 

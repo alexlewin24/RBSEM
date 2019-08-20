@@ -1,4 +1,4 @@
-cppPrimer = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="")
+cppPrimer = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="",na=FALSE)
 {
   
   # blockList
@@ -78,4 +78,6 @@ cppPrimer = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="")
   write.table(varType,"tmp/varType.txt", row.names = FALSE, col.names = FALSE)
   write.table(SEMGraph,"tmp/SEMGraph.txt", row.names = FALSE, col.names = FALSE)
   
+  
+
 }

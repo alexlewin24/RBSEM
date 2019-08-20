@@ -181,4 +181,37 @@ namespace Utils{
 		return ux;
 	}
 
+	arma::uvec arma_setintersect_idx(const arma::uvec& x, const arma::uvec& y){
+
+		arma::uvec ux = arma::unique(x);
+		arma::uvec uy = arma::unique(y);
+
+		for (size_t j = 0; j < uy.n_elem; j++) {
+			arma::uvec q1 = arma::find(ux == uy[j]);
+			if (!q1.empty()) {
+				ux.shed_row(q1(0));
+			}
+		}
+
+		return ux;
+	}
+
+
+	arma::uvec arma_get_vec_idx(const arma::uvec& x, const arma::uvec& y)
+	{
+		arma::uvec res(x.size(),arma::fill::none);
+
+		for (size_t i=0; i<x.size(); ++i)
+		{
+			arma::uvec r = arma::find(y==x(i),0,"first");
+			if ( r.n_elem == 0 )
+				throw std::runtime_error("In arma_get_vec_idx: " + std::to_string(x(i)) + " not found");
+
+			res(i) = r(0);
+		}
+
+		return res;
+	}
+
+
 }

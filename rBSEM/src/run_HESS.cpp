@@ -333,15 +333,11 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	}
 
 
+
 	// ****** Now init the imputations and run a first stage
-	arma::vec covariatesOnlyMean, covariatesOnlyVar;
-	arma::uvec covariatesOnlyIdx;
+	Imputation imputation(data, completeCases, SEMGraph, blockIdx, varType);
 
-	Imputation::initialiseXimpute(data, missingDataIndexes, SEMGraph, blockIdx,
-                    covariatesOnlyMean, covariatesOnlyVar,covariatesOnlyIdx);
-
-	Imputation::imputeAll(data, missingDataIndexes, missingDataIdxArray, varType,
-                    covariatesOnlyMean, covariatesOnlyVar, covariatesOnlyIdx,
+	imputation.imputeAll(data, missingDataIndexes, missingDataIdxArray, varType,
                     outcomesIdx, fixedPredictorsIdx,vsPredictorsIdx,
                     gamma_state, a_r_0, b_r_0, W_0);
 
@@ -405,7 +401,6 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	unsigned int nUpdates = arma::mean(nPredictors)/10; //arbitrary nunmber, should I use something different?
 
 	// BANDIT ONLY SECTION
-	
 	std::vector<arma::cube> alpha_z(nEquations);	
 	std::vector<arma::cube> beta_z(nEquations);
 	std::vector<arma::cube> zeta(nEquations); 
@@ -486,6 +481,14 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	}
 
 	logPFile.open( outFilePath+inFile+"_HESS_logP_out.txt" , std::ios_base::trunc ); 
+	
+	// Bayesian R^2
+	// arma::vec y_bar(nEquations);
+	// for( unsigned int k=0; k<nEquations; ++k)
+	// 	y_bar(k) = // ??? do we use complete cases? Do we use imputed values? Should probably write a function Model::RSquared
+		
+	// std::ofstream rSquaredFile;
+	// rSquaredFile.open( outFilePath+inFile+"_HESS_R_Squared_out.txt" , std::ios_base::trunc ); 
 
 	// Variable to hold the output to file ( current state )
 	double logP;
@@ -592,8 +595,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		// impute new data
 		if ( missingDataIndexes.n_elem > 0)
 		{
-			Imputation::imputeAll(data, missingDataIndexes, missingDataIdxArray, varType,
-                    covariatesOnlyMean, covariatesOnlyVar, covariatesOnlyIdx,
+			imputation.imputeAll(data, missingDataIndexes, missingDataIdxArray, varType,
                     outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx,
                     gamma_state, a_r_0, b_r_0, W_0);
 		}
