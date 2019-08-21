@@ -218,6 +218,7 @@ void Imputation::imputeAll(arma::mat &data,
     // NOW ONTO THE Ys
     // they're all assumed continuous
     // We'd like to impute them from their respective regressions, so ...
+    // NOTE: This uses the prior from the model, no extra values are needed
 
     unsigned int nEquations = outcomesIdx.size();
 
@@ -240,21 +241,23 @@ void Imputation::imputeAll(arma::mat &data,
       // tilde_B.t() * arma::inv_sympd(W_n) * tilde_B ) ) or something like that
       // in the non-informative case
 
-      // goryDetails.pdf give all the info needed
+      // http://www.biostat.umn.edu/~ph7440/pubh7440/BayesianLinearModelGoryDetails.pdf 
+      // gives all the info needed
 
       // get the structure from the SEMEquation thinghy
 
-      arma::vec mPredictive, vSquarePredictive, aPredictive, bPredictive;
-      arma::uvec VS_IN, xVS_IN;
-      arma::vec tilde_B;
-      arma::mat W_n;
-      double a_r_n, b_r_n;
-      arma::mat X_new, XtX;
-
-      arma::uvec nonMissingIdxThisColumn;
 
       for (unsigned int j = 0, nOutcomes = outcomesIdx[k].n_elem; j < nOutcomes;
            ++j) {
+
+        arma::vec mPredictive, vSquarePredictive, aPredictive, bPredictive;
+        arma::uvec VS_IN, xVS_IN;
+        arma::vec tilde_B;
+        arma::mat W_n;
+        double a_r_n, b_r_n;
+        arma::mat X_new, XtX;
+        arma::uvec nonMissingIdxThisColumn;
+
         arma::uvec currentCol(1);
         currentCol = outcomesIdx[k](j);
 
@@ -312,8 +315,7 @@ void Imputation::imputeAll(arma::mat &data,
 
           arma::vec newSamples =
               Distributions::randT(nMissingThisColumn, 2. * a_r_n) %
-                  arma::sqrt(vSquarePredictive) +
-              mPredictive;  // % is element-wise multiplication
+                  arma::sqrt(vSquarePredictive) + mPredictive;
           data.submat(missingIdxThisColumn, currentCol) = newSamples;
 
           // std::cout << j <<"  -- m:" << mPredictive(0) << " ! " <<

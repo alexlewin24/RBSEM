@@ -44,7 +44,7 @@ install.packages("rBSEM_0.2.tar.gz", repos = NULL, type="source",)
 # browseVignettes("rBSEM")
 
 na = TRUE
-nIter = 100000 * 1.1
+nIter = 10000 * 1.1
 burnin = 0.09 * nIter
 
 if(!na){
@@ -89,7 +89,6 @@ par(mfrow=c(1,1))
 
 if( burnin < 1 ) burnin = ceiling(nIter * burnin)
 mcmc_gamma_1 = rBSEM::traceToArray(fileName = "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = nIter-burnin)
-apply( mcmc_gamma_1 , 1:2 , mean ) - est_gamma_1  # differences up to 1e-4 1e-5 might exist because of rounding errorwhile writing the average frm C++
 plot(scan("data/sem_data_HESS_logP_out.txt"),type="l")
 
 
