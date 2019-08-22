@@ -1263,7 +1263,21 @@ std::vector<arma::mat> sampleBeta(
 * https://en.wikipedia.org/wiki/Coefficient_of_determination
 */
 
-std::vector<arma::vec> computeRSquared(
+// Bayesian R2 computed using https://stat.columbia.edu/~gelman/research/published/bayes_R2_v3.pdf
+
+std::tuple<double,double,double> R2Helper(arma::vec& y, arma::vec& y_hat)
+{
+  double y_bar = arma::mean(y);
+  double totalSS = arma::as_scalar((y - y_bar).t() *
+                                    (y - y_bar));
+  double residualSS = arma::as_scalar((y - y_hat).t() *
+                                      (y - y_hat));
+  double explainedSS = arma::as_scalar((y_hat - y_bar).t() *
+                                        (y_hat - y_bar));
+  return std::make_tuple(explainedSS,residualSS,totalSS);
+}
+
+std::vector<arma::vec> computeRSquaredCompleteCases(
     const arma::mat& data, const arma::uvec& completeCases,
     const std::vector<arma::uvec>& outcomesIdx,
     const std::vector<arma::uvec>& fixedPredictorsIdx,
@@ -1278,88 +1292,20 @@ std::vector<arma::vec> computeRSquared(
     for (unsigned int j = 0 ; j < outcomesIdx[k].n_elem; ++j) {
       arma::uvec currentOutcome(1);
       currentOutcome(0) = outcomesIdx[k](j);
-				arma::vec thisOutcomeData = data(completeCases, currentOutcome);
-
-      double y_bar = arma::accu(thisOutcomeData) /
-                     (double)completeCases.n_elem;
-
-      // some will be zero anyway, no need to clutter notation
 			arma::uvec predictors = arma::join_vert(fixedPredictorsIdx[k],vsPredictorsIdx[k]);
-      arma::vec y_hat = data(completeCases,predictors) * beta[k].col(j);
+      
+      arma::vec thisY = data(completeCases, currentOutcome);
+      arma::vec thisXB = data(completeCases,predictors) * beta[k].col(j);
 
-			double totalSS = arma::as_scalar((thisOutcomeData - y_bar).t() *
-                          (thisOutcomeData - y_bar));
-
-      double residualSS = arma::as_scalar((thisOutcomeData - y_hat).t() *
-                                          (thisOutcomeData - y_hat));
-
-      R2[k](j) = 1. - residualSS / totalSS ;
-
-      // if ( R2[k](j) > 1 || R2[k](j) < 0 )
-      // {
-
-      //   std::cout << "Ehm... " << std::endl;
-      //   std::cout << residualSS << " " << totalSS << " -- " << std::endl;
-      //   std::cout << R2[k](j) << std::endl;
-      //   std::cout << y_bar << " " << arma::mean(thisOutcomeData) << std::endl << std::endl 
-      //             // << y_hat.t() << std::endl << std::endl
-      //             // << thisOutcomeData.t() << std::endl 
-      //             << beta[k].col(j).t() << std::endl 
-      //             << std::endl; 
-
-      //   char c; std::cin>>c; if(c == 'q') throw std::runtime_error("exiting");
-      // }
-
+      auto SS = R2Helper( thisY, thisXB );
+      // R2[k](j) = 1. - std::get<1>(SS) / std::get<2>(SS) ;
+      R2[k](j) = std::get<0>(SS) / ( std::get<0>(SS) + std::get<1>(SS) ) ;
     }
   }
 	return R2;
 }
 
-std::vector<arma::vec> computeRSquaredImputedXOnly(
-    const arma::mat& data, const arma::umat& missingValuesIdxArray,
-    const std::vector<arma::uvec>& outcomesIdx,
-    const std::vector<arma::uvec>& fixedPredictorsIdx,
-    const std::vector<arma::uvec>& vsPredictorsIdx,
-    const std::vector<arma::mat>& beta) {
-  unsigned int nEquations = outcomesIdx.size();
-  std::vector<arma::vec> R2(nEquations);
-
-  for (unsigned int k = 0; k < nEquations; ++k) {
-    R2[k] = arma::vec(outcomesIdx[k].n_elem, arma::fill::none);
-
-    for (unsigned int j = 0 ; j < outcomesIdx[k].n_elem; ++j) {
-
-      arma::uvec currentOutcome(1);
-      currentOutcome(0) = outcomesIdx[k](j);
-
-      arma::uvec correctCases = missingValuesIdxArray.submat(
-            arma::find(missingValuesIdxArray.col(1) == outcomesIdx[k](j)),
-            arma::zeros<arma::uvec>(1) );
-
-      arma::vec thisOutcomeData = data(correctCases, currentOutcome);
-
-      double y_bar = arma::accu(thisOutcomeData) /
-                     (double)correctCases.n_elem;
-
-      // some will be zero anyway, no need to clutter notation
-			arma::uvec predictors = arma::join_vert(fixedPredictorsIdx[k],vsPredictorsIdx[k]);
-      arma::vec y_hat = data(correctCases,predictors) * beta[k].col(j);
-
-			double totalSS = arma::as_scalar((thisOutcomeData - y_bar).t() *
-                          (thisOutcomeData - y_bar));
-
-      double residualSS = arma::as_scalar((thisOutcomeData - y_hat).t() *
-                                          (thisOutcomeData - y_hat));
-
-      R2[k](j) = 1. - residualSS / totalSS ;
-
-    }
-  }
-	return R2;
-}
-
-
-std::vector<arma::vec> computeRSquaredImputed(
+std::vector<arma::vec> computeRSquaredFullImputedData(
     const arma::mat& data,
     const std::vector<arma::uvec>& outcomesIdx,
     const std::vector<arma::uvec>& fixedPredictorsIdx,
@@ -1372,22 +1318,14 @@ std::vector<arma::vec> computeRSquaredImputed(
     R2[k] = arma::vec(outcomesIdx[k].n_elem, arma::fill::none);
 
     for (unsigned int j = 0 ; j < outcomesIdx[k].n_elem; ++j) {
-      arma::vec thisOutcomeData = data.col(outcomesIdx[k](j));
-
-      double y_bar = arma::accu(thisOutcomeData) /
-                     (double)data.n_rows;
-
-      // some will be zero anyway, no need to clutter notation
 			arma::uvec predictors = arma::join_vert(fixedPredictorsIdx[k],vsPredictorsIdx[k]);
-      arma::vec y_hat = data.cols(predictors) * beta[k].col(j);
 
-			double totalSS = arma::as_scalar((thisOutcomeData - y_bar).t() *
-                          (thisOutcomeData - y_bar));
+      arma::vec thisY = data.col(outcomesIdx[k](j));
+      arma::vec thisXB = data.cols(predictors) * beta[k].col(j);
 
-      double residualSS = arma::as_scalar((thisOutcomeData - y_hat).t() *
-                                          (thisOutcomeData - y_hat));
-
-      R2[k](j) = 1. - residualSS / totalSS ;
+      auto SS = R2Helper( thisY, thisXB );
+      // R2[k](j) = 1. - std::get<1>(SS) / std::get<2>(SS) ;
+      R2[k](j) = std::get<0>(SS) / ( std::get<0>(SS) + std::get<1>(SS) ) ;
     }
   }
 	return R2;

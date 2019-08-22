@@ -87,8 +87,9 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	// Init the missing data array in a more readable way
 	arma::umat missingDataIdxArray;
 	arma::uvec completeCases;
+	bool hasMissingData = missingDataIndexes.n_elem > 0;
 
-	if( missingDataIndexes.n_elem > 0 )
+	if( hasMissingData )
 	{
 		// create an array of indexes with rows and columns
 		missingDataIdxArray = arma::umat(missingDataIndexes.n_elem,2);
@@ -465,11 +466,11 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	// std::ofstream omegaOutFile; omegaOutFile.open( outFilePath+inFile+"_SSUR_omega_out.txt" , std::ios_base::trunc); omegaOutFile.close();
 	std::ofstream gammaOutFile; 
 	std::ofstream logPFile; 
+	std::ofstream imputedDataFile; 
 	std::vector<std::ofstream> MCMCGammaFile(nEquations); 
 	std::vector<std::ofstream> MCMCBetaFile(nEquations); 
-	std::vector<std::ofstream> rSquaredFile(nEquations);
-	std::vector<std::ofstream> rSquaredFileXImputed(nEquations);
-	std::vector<std::ofstream> rSquaredFileFullImputed(nEquations);
+	std::vector<std::ofstream> rSquaredCompleteCasesFile(nEquations);
+	std::vector<std::ofstream> rSquaredFullDataFile(nEquations);
 
 	// zero out files
 	for( unsigned int k=0; k<nEquations; ++k)
@@ -480,14 +481,20 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		// MCMCGammaFile[k] = std::ofstream();
 		MCMCGammaFile[k].open( outFilePath+inFile+"_HESS_gamma_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
 		MCMCBetaFile[k].open( outFilePath+inFile+"_HESS_beta_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
-		// Bayesian R^2
-		rSquaredFile[k].open( outFilePath+inFile+"_HESS_R2_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
-		rSquaredFileXImputed[k].open( outFilePath+inFile+"_HESS_R2_X_imputed_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
-		rSquaredFileFullImputed[k].open( outFilePath+inFile+"_HESS_R2_full_imputed_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
 
+		// Bayesian R^2
+		if ( hasMissingData ){
+			rSquaredCompleteCasesFile[k].open( outFilePath+inFile+"_HESS_R2_complete_cases_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc );
+			rSquaredFullDataFile[k].open( outFilePath+inFile+"_HESS_R2_full_imputed_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
+		}else{
+			rSquaredCompleteCasesFile[k].open( outFilePath+inFile+"_HESS_R2_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc );
+		}
 		// no closing since we're appending to these
 	}
-
+	// Imputed data
+	if ( hasMissingData )
+		imputedDataFile.open( outFilePath+inFile+"_HESS_imputed_out.txt" , std::ios_base::trunc ); 
+	// log probabilities
 	logPFile.open( outFilePath+inFile+"_HESS_logP_out.txt" , std::ios_base::trunc ); 
 	
 
@@ -495,6 +502,8 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	unsigned int batch_size { std::min((unsigned int)1000,nIter-burnin) };
 
 	double logP;
+
+	// MCMC output in batches
 	std::vector<arma::umat> gamma_out(nEquations);
 	// could use save but I need to sum and then normalise so I'd need to store another matrix for each...
 	std::vector<arma::ucube> mcmc_gamma_out_batch(nEquations);
@@ -502,9 +511,9 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	{
 		gamma_out[k] = arma::zeros<arma::umat>(nVSPredictors(k),nOutcomes(k));
 		mcmc_gamma_out_batch[k] = arma::ucube(nVSPredictors(k),nOutcomes(k),batch_size);	
-	}		
+	}
 
-	// beta output init
+	// average beta output init
 	std::vector<arma::mat> beta_out(nEquations);
 	std::vector<arma::umat> beta_out_count(nEquations);
 	std::vector<arma::cube> mcmc_beta_out_batch(nEquations);
@@ -517,29 +526,29 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	}
 
 	// RSquared output init
-	std::vector<arma::mat> mcmc_R2_out_batch(nEquations);
-	std::vector<arma::mat> mcmc_R2_x_i_out_batch(nEquations);
-	std::vector<arma::mat> mcmc_R2_f_i_out_batch(nEquations);
+	std::vector<arma::mat> mcmc_R2_cc_out_batch(nEquations); // complete cases
+	std::vector<arma::mat> mcmc_R2_fd_out_batch(nEquations); // full data
 	for( unsigned int k=0; k<nEquations; ++k){
-		mcmc_R2_out_batch[k] = arma::mat(batch_size,nOutcomes(k));
-		mcmc_R2_x_i_out_batch[k] = arma::mat(batch_size,nOutcomes(k));
-		mcmc_R2_f_i_out_batch[k] = arma::mat(batch_size,nOutcomes(k));
+		mcmc_R2_fd_out_batch[k] = arma::mat(batch_size,nOutcomes(k));
+		if( hasMissingData )
+			mcmc_R2_cc_out_batch[k] = arma::mat(batch_size,nOutcomes(k));
 	}
+	//imputed valu init
+	arma::mat imputedValues(batch_size,missingDataIndexes.n_elem);
+
 	// first output
 	std::vector<arma::mat> sampledBeta;
-	std::vector<arma::vec> RSquared;
-	std::vector<arma::vec> RSquaredXImputed;
-	std::vector<arma::vec> RSquaredFullImputed;
+	std::vector<arma::vec> RSquaredFullData;
+	std::vector<arma::vec> RSquaredCompleteCases;
 
 	if( burnin == 0 )
 	{
 		sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
 				a_r_0, b_r_0, W_0 );
-		RSquared = Model::computeRSquared( data, completeCases, outcomesIdx, 
+		RSquaredFullData = Model::computeRSquaredFullImputedData( data, outcomesIdx, 
 				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
-		RSquaredXImputed = Model::computeRSquaredImputedXOnly( data, missingDataIdxArray, outcomesIdx, 
-				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
-		RSquaredFullImputed = Model::computeRSquaredImputed( data, outcomesIdx, 
+		if ( hasMissingData )
+			RSquaredCompleteCases = Model::computeRSquaredCompleteCases( data, completeCases, outcomesIdx, 
 				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
 
 		for( unsigned int k=0; k<nEquations; ++k)
@@ -553,10 +562,12 @@ int run_HESS(std::string inFile, std::string outFilePath,
 				gamma_state[k].slice(0);
 			mcmc_beta_out_batch[k].slice(0) = sampledBeta[k];
 			// output rows, I think it makes more sense, no cursor movements
-			mcmc_R2_out_batch[k].row(0) = RSquared[k].t(); 
-			mcmc_R2_x_i_out_batch[k].row(0) = RSquaredXImputed[k].t(); 
-			mcmc_R2_f_i_out_batch[k].row(0) = RSquaredFullImputed[k].t(); 
+			mcmc_R2_fd_out_batch[k].row(0) = RSquaredFullData[k].t(); 
+			if( hasMissingData )
+				mcmc_R2_cc_out_batch[k].row(0) = RSquaredCompleteCases[k].t(); 
 		}
+		if( hasMissingData )
+			imputedValues.row(0) = data(missingDataIndexes).t();
 
 		logP=0.;
 		for( unsigned int k=0; k<nEquations; ++k)
@@ -598,12 +609,11 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		{
 			sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
 					a_r_0, b_r_0, W_0 );
-			RSquared = Model::computeRSquared( data, completeCases, outcomesIdx, 
-				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
-			RSquaredXImputed = Model::computeRSquaredImputedXOnly( data, missingDataIdxArray, outcomesIdx, 
-				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
-			RSquaredFullImputed = Model::computeRSquaredImputed( data, outcomesIdx, 
-				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
+			RSquaredFullData = Model::computeRSquaredFullImputedData( data, outcomesIdx, 
+					fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
+			if ( hasMissingData )
+				RSquaredCompleteCases = Model::computeRSquaredCompleteCases( data, completeCases, outcomesIdx, 
+					fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
 
 			for( unsigned int k=0; k<nEquations; ++k)
 			{
@@ -618,15 +628,19 @@ int run_HESS(std::string inFile, std::string outFilePath,
 					gamma_state[k].slice(0);
 
 				mcmc_beta_out_batch[k].slice( (iteration-burnin) % batch_size ) = sampledBeta[k];
-				mcmc_R2_out_batch[k].row( (iteration-burnin) % batch_size ) = RSquared[k].t(); 
-				mcmc_R2_x_i_out_batch[k].row( (iteration-burnin) % batch_size ) = RSquaredXImputed[k].t(); 
-				mcmc_R2_f_i_out_batch[k].row( (iteration-burnin) % batch_size ) = RSquaredFullImputed[k].t(); 
-			}		
+				mcmc_R2_fd_out_batch[k].row( (iteration-burnin) % batch_size ) = RSquaredFullData[k].t();
+				if ( hasMissingData )
+					mcmc_R2_cc_out_batch[k].row( (iteration-burnin) % batch_size ) = RSquaredCompleteCases[k].t(); 
+			}
+
+			if ( hasMissingData )
+				imputedValues.row((iteration-burnin) % batch_size) = data(missingDataIndexes).t();
+
 			logPFile << logP << " ";
 		}
 
 		// impute new data
-		if ( missingDataIndexes.n_elem > 0)
+		if ( hasMissingData )
 		{
 			imputation.imputeAll(data, missingDataIndexes, missingDataIdxArray, varType,
                     outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx,
@@ -676,9 +690,9 @@ int run_HESS(std::string inFile, std::string outFilePath,
 				{
 					MCMCGammaFile[k] << mcmc_gamma_out_batch[k].slice(slice);
 					MCMCBetaFile[k] << mcmc_beta_out_batch[k].slice(slice);
-					rSquaredFile[k] << mcmc_R2_out_batch[k].row(slice);
-					rSquaredFileXImputed[k] << mcmc_R2_x_i_out_batch[k].row(slice);
-					rSquaredFileFullImputed[k] << mcmc_R2_f_i_out_batch[k].row(slice);
+					rSquaredFullDataFile[k] << mcmc_R2_fd_out_batch[k].row(slice);
+					if ( hasMissingData )
+						rSquaredCompleteCasesFile[k] << mcmc_R2_cc_out_batch[k].row(slice);
 				}
 				MCMCGammaFile[k] << std::flush;
 				MCMCBetaFile[k] << std::flush;
@@ -689,11 +703,22 @@ int run_HESS(std::string inFile, std::string outFilePath,
 					// reset the batch
 					mcmc_gamma_out_batch[k].set_size( nVSPredictors(k),nOutcomes(k), nIter - (iteration + 1) );	
 					mcmc_beta_out_batch[k].set_size( nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k), nIter - (iteration + 1) );	
-					mcmc_R2_out_batch[k].set_size( nIter - (iteration + 1) , nOutcomes(k) );	
-					mcmc_R2_x_i_out_batch[k].set_size( nIter - (iteration + 1) , nOutcomes(k) );	
-					mcmc_R2_f_i_out_batch[k].set_size( nIter - (iteration + 1) , nOutcomes(k) );	
+					mcmc_R2_fd_out_batch[k].set_size( nIter - (iteration + 1) , nOutcomes(k) );	
+					if ( hasMissingData )
+						mcmc_R2_cc_out_batch[k].set_size( nIter - (iteration + 1) , nOutcomes(k) );	
 				}
 				mcmc_gamma_out_batch[k].fill(2); // why? bah... to fill and maybecheck later
+			}
+
+			if( hasMissingData ){
+				// output a batch of imputed data iterations
+				for( unsigned int row=0, nrows = imputedValues.n_rows; row < nrows; ++row)
+					imputedDataFile << imputedValues.row(row);
+				imputedDataFile << std::flush;
+
+				// if we have less iter to go than the batch size reset the batch 
+				if( (nIter - (iteration+ 1) ) < batch_size )
+					imputedValues.set_size( nIter - (iteration + 1) , missingDataIndexes.n_elem );	
 			}
 		}
 
@@ -713,24 +738,24 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		{
 			MCMCGammaFile[k] << mcmc_gamma_out_batch[k].slice(slice);
 			MCMCBetaFile[k] << mcmc_beta_out_batch[k].slice(slice);
-			rSquaredFile[k] << mcmc_R2_out_batch[k].row(slice);
-			rSquaredFileXImputed[k] << mcmc_R2_x_i_out_batch[k].row(slice);
-			rSquaredFileFullImputed[k] << mcmc_R2_f_i_out_batch[k].row(slice);
+			rSquaredFullDataFile[k] << mcmc_R2_fd_out_batch[k].row(slice);
+			if( hasMissingData )
+				rSquaredCompleteCasesFile[k] << mcmc_R2_cc_out_batch[k].row(slice);
 		}
 
 		// write
 		MCMCGammaFile[k] << std::flush;
 		MCMCBetaFile[k] << std::flush;
-		rSquaredFile[k] << std::flush;
-		rSquaredFileXImputed[k] << std::flush;
-		rSquaredFileFullImputed[k] << std::flush;
+		rSquaredFullDataFile[k] << std::flush;
+		if( hasMissingData )
+			rSquaredCompleteCasesFile[k] << std::flush;
 
 		// close the files
 		MCMCGammaFile[k].close();
 		MCMCBetaFile[k].close();
-		rSquaredFile[k].close();
-		rSquaredFileXImputed[k].close();
-		rSquaredFileFullImputed[k].close();
+		rSquaredFullDataFile[k].close();
+		if( hasMissingData )
+			rSquaredCompleteCasesFile[k].close();
 
 		// output betas
 		beta_out[k] = beta_out[k]/beta_out_count[k];
@@ -738,6 +763,14 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 	}
 
+	if( hasMissingData ){
+		// output last batch of imputed data iterations
+		for( unsigned int row=0, nrows = imputedValues.n_rows; row < nrows; ++row)
+			imputedDataFile << imputedValues.row(row);
+		imputedDataFile << std::flush;
+		imputedDataFile.close();
+	}
+	
 	logPFile << /*std::char_traits<char>::eof()*/ std::endl;
 	logPFile.close();
 

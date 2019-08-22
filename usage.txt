@@ -11,6 +11,7 @@ $ make HESS
 and then
 
 ./HESS_Reg --inFile data/sem_data.txt --outFilePath data/ --nChains 1 --method 1 --seed 0 --nIter 200
+./HESS_Reg --inFile data/na_sem_data.txt --outFilePath data/ --nChains 1 --method 1 --seed 0 --nIter 200
 
 
 

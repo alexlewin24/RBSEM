@@ -157,20 +157,8 @@ std::vector<arma::mat> sampleBeta(
 * Compute R Squared (coefficient of determination)
 * for Complete Cases only, i.e. with no imputation at all
 */
-std::vector<arma::vec> computeRSquared(
+std::vector<arma::vec> computeRSquaredCompleteCases(
     const arma::mat& data, const arma::uvec& completeCases,
-    const std::vector<arma::uvec>& outcomesIdx,
-    const std::vector<arma::uvec>& fixedPredictorsIdx,
-    const std::vector<arma::uvec>& vsPredictorsIdx,
-    const std::vector<arma::mat>& beta);
-
-/*
-* Compute R Squared (coefficient of determination)
-* on a partially imputed data matrix, where only the Xs
-* (the variable appearing as covariates only) are imputed
-*/
-std::vector<arma::vec> computeRSquaredImputedXOnly(
-    const arma::mat& data, const arma::umat& missingValuesIdxArray,
     const std::vector<arma::uvec>& outcomesIdx,
     const std::vector<arma::uvec>& fixedPredictorsIdx,
     const std::vector<arma::uvec>& vsPredictorsIdx,
@@ -180,7 +168,7 @@ std::vector<arma::vec> computeRSquaredImputedXOnly(
 * Compute R Squared (coefficient of determination)
 * on the fully imputed data matrix
 */
-std::vector<arma::vec> computeRSquaredImputed(
+std::vector<arma::vec> computeRSquaredFullImputedData(
     const arma::mat& data, const std::vector<arma::uvec>& outcomesIdx,
     const std::vector<arma::uvec>& fixedPredictorsIdx,
     const std::vector<arma::uvec>& vsPredictorsIdx,
