@@ -2,7 +2,7 @@ library(mvtnorm)
 library(MCMCpack)
 
 ## Do we want to generate data with missing values?
-na=FALSE
+na=TRUE
 
 ## Simulate a 2 block SEM
 n = 200
@@ -69,8 +69,8 @@ block_idx = c(rep(1,s_1),rep(2,s_2),rep(0,p))
 
 blockL = list( 
   c(9:28),  ## x0 -- block 0
-  c(1:3,5),  ## y1 -- block 1
-  c(6:8,4)  ## y2 -- block 2
+  c(1:5),  ## y1 -- block 1
+  c(6:8)  ## y2 -- block 2
 )
 
 ### then the graph structure
@@ -84,6 +84,13 @@ G = matrix(c(
 
 var_types = rep(0,s_1+s_2+p)
 
+blockIndexes = rep(NA, max(unlist(blockL)))
+for( i in 1:length(blockL))
+  blockIndexes[blockL[[i]]] = i-1
+
+blockIndexes[is.na(blockIndexes)] = -1
+## Note that there's correlation between X and y_1 so y_2 ~ y_1 + x has some collienearity
+
 ## Write data to file and save the environment
 
 if(na){
@@ -95,12 +102,4 @@ if(na){
 }
 
 
-blockIndexes = rep(NA, max(unlist(blockList)))
-for( i in 1:length(blockList))
-  blockIndexes[blockList[[i]]] = i-1
-
-blockIndexes[is.na(blockIndexes)] = -1
-
-
-## Note that there's correlation between X and y_1 so y_2 ~ y_1 + x has some collienearity
 

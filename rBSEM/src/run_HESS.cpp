@@ -537,19 +537,35 @@ int run_HESS(std::string inFile, std::string outFilePath,
 	arma::mat imputedValues(batch_size,missingDataIndexes.n_elem);
 
 	// first output
-	std::vector<arma::mat> sampledBeta;
+	std::vector<arma::mat> sampledBeta(nEquations);
+	std::vector<arma::vec> sampledSigma(nEquations);
+	for( unsigned int k=0; k<nEquations; ++k){
+		sampledBeta[k] = arma::mat(nFIXPredictors(k)+nVSPredictors(k),nOutcomes(k));
+		sampledSigma[k] = arma::vec(nOutcomes(k));
+	}
+
 	std::vector<arma::vec> RSquaredFullData;
 	std::vector<arma::vec> RSquaredCompleteCases;
 
 	if( burnin == 0 )
 	{
-		sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
+		Model::sampleBetaAndSigma( sampledBeta, sampledSigma, 
+				data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
 				a_r_0, b_r_0, W_0 );
-		RSquaredFullData = Model::computeRSquaredFullImputedData( data, outcomesIdx, 
-				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
+
+		RSquaredFullData = Model::computeRSquaredFullDataNoY( data, outcomesIdx, 
+				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta, sampledSigma );
 		if ( hasMissingData )
-			RSquaredCompleteCases = Model::computeRSquaredCompleteCases( data, completeCases, outcomesIdx, 
-				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
+			RSquaredCompleteCases = Model::computeRSquaredCompleteCasesNoY( data, completeCases, outcomesIdx, 
+				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta, sampledSigma );
+
+		// sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
+		// 		a_r_0, b_r_0, W_0 );
+		// RSquaredFullData = Model::computeRSquaredFullData( data, outcomesIdx, 
+		// 		fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
+		// if ( hasMissingData )
+		// 	RSquaredCompleteCases = Model::computeRSquaredCompleteCases( data, completeCases, outcomesIdx, 
+		// 		fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
 
 		for( unsigned int k=0; k<nEquations; ++k)
 		{
@@ -607,13 +623,31 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 		if( iteration >= burnin )
 		{
-			sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
-					a_r_0, b_r_0, W_0 );
-			RSquaredFullData = Model::computeRSquaredFullImputedData( data, outcomesIdx, 
-					fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
+
+			Model::sampleBetaAndSigma( sampledBeta, sampledSigma, 
+				data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
+				a_r_0, b_r_0, W_0 );
+
+			// std::cout << sampledBeta[0] << std::endl<< std::endl;
+			// std::cout << sampledSigma[0].t() << std::endl<< std::endl;
+			// for( unsigned int j=0; j<nOutcomes(0); ++j)
+			// 	std::cout << arma::var(data.col(outcomesIdx[0](j))) << " ";
+			// std::cout << std::endl;
+			// char c; std::cin >> c;
+
+			RSquaredFullData = Model::computeRSquaredFullDataNoY( data, outcomesIdx, 
+				fixedPredictorsIdx, vsPredictorsIdx, sampledBeta, sampledSigma );
 			if ( hasMissingData )
-				RSquaredCompleteCases = Model::computeRSquaredCompleteCases( data, completeCases, outcomesIdx, 
-					fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
+				RSquaredCompleteCases = Model::computeRSquaredCompleteCasesNoY( data, completeCases, outcomesIdx, 
+					fixedPredictorsIdx, vsPredictorsIdx, sampledBeta, sampledSigma );
+
+			// sampledBeta = Model::sampleBeta( data, outcomesIdx, fixedPredictorsIdx, vsPredictorsIdx, gamma_state, 
+			// 		a_r_0, b_r_0, W_0 );
+			// RSquaredFullData = Model::computeRSquaredFullData( data, outcomesIdx, 
+			// 		fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
+			// if ( hasMissingData )
+			// 	RSquaredCompleteCases = Model::computeRSquaredCompleteCases( data, completeCases, outcomesIdx, 
+			// 		fixedPredictorsIdx, vsPredictorsIdx, sampledBeta );
 
 			for( unsigned int k=0; k<nEquations; ++k)
 			{

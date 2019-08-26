@@ -227,7 +227,9 @@ void Imputation::imputeAll(arma::mat &data,
       // one by one all the outcomes. They're assumed independent for now, so no
       // big deal in doing them separately ...
 
-      // see Sec 6.5 in bayesGauss.pdf and the likelihoodSUR function to get the
+      // see Sec 6.5 in 
+      // https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf 
+      // and the likelihoodSUR function to get the
       // parameters in C++ Sec 10 too look at their t-student parametrisation --
       // IMPORTANT IS if x~t_n(m,v^2) then (x-m)/v ~ t_n so we can use the c++
       // sampler easily as in Distributions::randT(.,.) * v + m

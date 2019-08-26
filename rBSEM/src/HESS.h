@@ -146,7 +146,22 @@ void adapCrossOver_step(
     const unsigned int nGlobalUpdates,  // hyper tuning pars
     double& accCountGlobalUpdates, unsigned int& countGlobalUpdates);
 
+/*
+* Sample regression coefficients from their MARGINAL posterior distributions
+*/
 std::vector<arma::mat> sampleBeta(
+    arma::mat& data, const std::vector<arma::uvec>& outcomesIdx,
+    const std::vector<arma::uvec>& fixedPredictorsIdx,
+    const std::vector<arma::uvec>& vsPredictorsIdx,
+    const std::vector<arma::ucube>& gamma_state, const double a_r_0,
+    const double b_r_0, const std::vector<arma::mat>& W_0);
+
+/*
+* Sample both regression coefficients and residual variations
+* from their respective posterior distributions
+*/
+void sampleBetaAndSigma(
+    std::vector<arma::mat>& beta, std::vector<arma::vec>& sigma, // return values
     arma::mat& data, const std::vector<arma::uvec>& outcomesIdx,
     const std::vector<arma::uvec>& fixedPredictorsIdx,
     const std::vector<arma::uvec>& vsPredictorsIdx,
@@ -166,13 +181,39 @@ std::vector<arma::vec> computeRSquaredCompleteCases(
 
 /*
 * Compute R Squared (coefficient of determination)
-* on the fully imputed data matrix
+* on the full[y imputed] data matrix
 */
-std::vector<arma::vec> computeRSquaredFullImputedData(
+std::vector<arma::vec> computeRSquaredFullData(
     const arma::mat& data, const std::vector<arma::uvec>& outcomesIdx,
     const std::vector<arma::uvec>& fixedPredictorsIdx,
     const std::vector<arma::uvec>& vsPredictorsIdx,
     const std::vector<arma::mat>& beta);
+
+/*
+* Compute R Squared (coefficient of determination)
+* for Complete Cases only, i.e. with no imputation at all
+* using only observed Xs and no observed Ys (see Gelman et al 2018)
+*/
+std::vector<arma::vec> computeRSquaredCompleteCasesNoY(
+    const arma::mat& data, const arma::uvec& completeCases,
+    const std::vector<arma::uvec>& outcomesIdx,
+    const std::vector<arma::uvec>& fixedPredictorsIdx,
+    const std::vector<arma::uvec>& vsPredictorsIdx,
+    const std::vector<arma::mat>& beta,
+    const std::vector<arma::vec>& sigma);
+
+/*
+* Compute R Squared (coefficient of determination)
+* on the full[y imputed] data matrix
+* using only observed Xs and no observed Ys (see Gelman et al 2018)
+*/
+std::vector<arma::vec> computeRSquaredFullDataNoY(
+    const arma::mat& data, const std::vector<arma::uvec>& outcomesIdx,
+    const std::vector<arma::uvec>& fixedPredictorsIdx,
+    const std::vector<arma::uvec>& vsPredictorsIdx,
+    const std::vector<arma::mat>& beta,
+    const std::vector<arma::vec>& sigma);
+
 
 }  // namespace Model
 

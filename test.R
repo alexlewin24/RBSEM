@@ -88,7 +88,9 @@ image(est_beta_2,col=greyscale); image(b_2*gamma_2,col=greyscale)
 par(mfrow=c(1,1))
 
 if( burnin < 1 ) burnin = ceiling(nIter * burnin)
-mcmc_gamma_1 = rBSEM::traceToArray(fileName = "data/sem_data_HESS_gamma_1_MCMC_out.txt",nIterations = nIter-burnin)
-plot(scan("data/sem_data_HESS_logP_out.txt"),type="l")
-
+if(!na){
+  plot(scan("data/sem_data_HESS_logP_out.txt"),type="l")
+}else{
+  plot(scan("data/na_sem_data_HESS_logP_out.txt"),type="l")
+}
 

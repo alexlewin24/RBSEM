@@ -60,8 +60,7 @@ double logSURLikelihood(const arma::mat& data, const arma::uvec& outcomesIdx,
 #endif
   // TODO, is it more beneficial to have parallel chains and sequential
   // likelihood or viceversa?
-
-  for (unsigned int l = 0; l < s; ++l)  // for each univaraite outcome ..
+  for (unsigned int l = 0; l < s; ++l)  // for each univariate outcome ..
   {
     VS_IN = arma::join_vert(fixedPredictorsIdx,
                             vsPredictorsIdx(find(gamma.col(l) != 0)));
@@ -1208,16 +1207,7 @@ std::vector<arma::mat> sampleBeta(
     const std::vector<arma::ucube>& gamma_state, const double a_r_0,
     const double b_r_0, const std::vector<arma::mat>& W_0) {
   unsigned int nEquations = outcomesIdx.size();
-
-  arma::vec mPredictive, vSquarePredictive, aPredictive, bPredictive;
-  arma::uvec VS_IN, xVS_IN;
-  arma::vec tilde_B;
-  arma::mat W_n;
-  arma::mat XtX;
-  arma::uvec currentCol(1);
-  arma::uvec singleIdx_j(1);
-
-  arma::uvec nonMissingIdxThisColumn;
+  unsigned int nObservations = data.n_rows;
 
   std::vector<arma::mat> beta(nEquations);
 
@@ -1228,31 +1218,116 @@ std::vector<arma::mat> sampleBeta(
 
     for (unsigned int j = 0, nOutcomes = outcomesIdx[k].n_elem; j < nOutcomes;
          ++j) {
+      arma::uvec currentCol(1);
       currentCol(0) = outcomesIdx[k](j);
+      
+      arma::uvec singleIdx_j(1);
       singleIdx_j(0) = j;
 
-      VS_IN = arma::join_vert(
+      arma::uvec VS_IN = arma::join_vert(
           fixedPredictorsIdx[k],
           vsPredictorsIdx[k](find(gamma_state[k].slice(0).col(j) != 0)));
 
-      xVS_IN = arma::join_vert(
+      arma::uvec xVS_IN = arma::join_vert(
           arma::regspace<arma::uvec>(
               0, fixedPredictorsIdx[k].n_elem - 1),  // the fixed part
           fixedPredictorsIdx[k].n_elem +
               find(gamma_state[k].slice(0).col(j) != 0));  // the VS part
 
-      XtX = arma::trans(data.cols(VS_IN)) * data.cols(VS_IN);
+      arma::mat XtX = arma::trans(data.cols(VS_IN)) * data.cols(VS_IN);
 
-      W_n = arma::inv_sympd(XtX + arma::inv_sympd(W_0[k](xVS_IN, xVS_IN)));
-      tilde_B = W_n * (arma::trans(data.cols(VS_IN)) *
-                       data.cols(currentCol) /* + W_0[k].i() * ZERO  */);
+      arma::mat W_n = arma::inv_sympd(XtX + arma::inv_sympd(W_0[k](xVS_IN, xVS_IN)));
+      arma::vec tilde_B = W_n * (arma::trans(data.cols(VS_IN)) *
+                      data.cols(currentCol) /* + W_0[k].i() * ZERO  */);
+
+      double a_r_n = a_r_0 + 0.5 * (double)(nObservations);
+      double b_r_n = b_r_0 + 0.5 * arma::as_scalar(
+                    arma::trans(
+                        data.col(outcomesIdx[k](j))) *
+                        data.col(outcomesIdx[k](j)) -
+                    (tilde_B.t() * arma::inv_sympd(W_n) * tilde_B));
 
       beta[k].submat(xVS_IN, singleIdx_j) =
-          Distributions::randMvNormal(tilde_B, W_n);
+          Distributions::randMvT(2.*a_r_n, tilde_B, (b_r_n/a_r_n)*W_n);
     }
   }
 
   return beta;
+}
+
+void sampleBetaAndSigma(
+    std::vector<arma::mat>& beta, std::vector<arma::vec>& sigma, // return values
+    arma::mat& data, const std::vector<arma::uvec>& outcomesIdx,
+    const std::vector<arma::uvec>& fixedPredictorsIdx,
+    const std::vector<arma::uvec>& vsPredictorsIdx,
+    const std::vector<arma::ucube>& gamma_state, const double a_r_0,
+    const double b_r_0, const std::vector<arma::mat>& W_0) {
+  unsigned int nEquations = outcomesIdx.size();
+  unsigned int nObservations = data.n_rows;
+
+  if ( beta.size() != nEquations || sigma.size() != nEquations ){
+    beta = std::vector<arma::mat>(nEquations);
+    sigma = std::vector<arma::vec>(nEquations);
+  }
+
+  for (unsigned int k = 0; k < nEquations; ++k) {
+
+    unsigned int nOutcomes = outcomesIdx[k].n_elem;
+
+    if ( beta[k].n_cols != nOutcomes || 
+          beta[k].n_rows != (fixedPredictorsIdx[k].n_elem + vsPredictorsIdx[k].n_elem) ){
+      beta[k] = arma::zeros<arma::mat>(
+        fixedPredictorsIdx[k].n_elem + vsPredictorsIdx[k].n_elem,
+        nOutcomes);
+    }else{
+      beta[k].fill(0.);
+    }
+
+    if ( sigma[k].n_elem != nOutcomes ){
+      sigma[k] = arma::zeros<arma::vec>(nOutcomes);
+    }else{
+      sigma[k].fill(0.);  
+    }
+
+    for (unsigned int j = 0; j < nOutcomes; ++j) {
+
+      arma::uvec currentCol(1);
+      currentCol(0) = outcomesIdx[k](j);
+      
+      arma::uvec singleIdx_j(1);
+      singleIdx_j(0) = j;
+
+      arma::uvec VS_IN = arma::join_vert(
+          fixedPredictorsIdx[k],
+          vsPredictorsIdx[k](find(gamma_state[k].slice(0).col(j) != 0)));
+
+      arma::uvec xVS_IN = arma::join_vert(
+          arma::regspace<arma::uvec>(
+              0, fixedPredictorsIdx[k].n_elem - 1),  // the fixed part
+          fixedPredictorsIdx[k].n_elem +
+              find(gamma_state[k].slice(0).col(j) != 0));  // the VS part
+
+      arma::mat XtX = arma::trans(data.cols(VS_IN)) * data.cols(VS_IN);
+
+      arma::mat W_n = arma::inv_sympd(XtX + arma::inv_sympd(W_0[k](xVS_IN, xVS_IN)));
+      arma::vec tilde_B = W_n * (arma::trans(data.cols(VS_IN)) *
+                      data.cols(currentCol) /* + W_0[k].i() * ZERO  */);
+
+      double a_r_n = a_r_0 + 0.5 * (double)(nObservations);
+      double b_r_n = b_r_0 + 0.5 * arma::as_scalar(
+                    arma::trans(
+                        data.col(outcomesIdx[k](j))) *
+                        data.col(outcomesIdx[k](j)) -
+                    (tilde_B.t() * arma::inv_sympd(W_n) * tilde_B));
+      
+
+      sigma[k](j) = Distributions::randIGamma(a_r_n,b_r_n);
+
+      beta[k].submat(xVS_IN, singleIdx_j) =
+          Distributions::randMvNormal(tilde_B, W_n * sigma[k](j) );
+
+    }
+  }
 }
 
 /*
@@ -1305,7 +1380,7 @@ std::vector<arma::vec> computeRSquaredCompleteCases(
 	return R2;
 }
 
-std::vector<arma::vec> computeRSquaredFullImputedData(
+std::vector<arma::vec> computeRSquaredFullData(
     const arma::mat& data,
     const std::vector<arma::uvec>& outcomesIdx,
     const std::vector<arma::uvec>& fixedPredictorsIdx,
@@ -1330,5 +1405,56 @@ std::vector<arma::vec> computeRSquaredFullImputedData(
   }
 	return R2;
 }
+
+std::vector<arma::vec> computeRSquaredCompleteCasesNoY(
+    const arma::mat& data, const arma::uvec& completeCases,
+    const std::vector<arma::uvec>& outcomesIdx,
+    const std::vector<arma::uvec>& fixedPredictorsIdx,
+    const std::vector<arma::uvec>& vsPredictorsIdx,
+    const std::vector<arma::mat>& beta,
+    const std::vector<arma::vec>& sigma) {
+  unsigned int nEquations = outcomesIdx.size();
+  std::vector<arma::vec> R2(nEquations);
+
+  for (unsigned int k = 0; k < nEquations; ++k) {
+    R2[k] = arma::vec(outcomesIdx[k].n_elem, arma::fill::none);
+
+    for (unsigned int j = 0 ; j < outcomesIdx[k].n_elem; ++j) {
+			arma::uvec predictors = arma::join_vert(fixedPredictorsIdx[k],vsPredictorsIdx[k]);
+      arma::vec thisXB = data(completeCases,predictors) * beta[k].col(j);
+      
+      double varFit = arma::var(thisXB);
+      double varRes = sigma[k](j);
+      R2[k](j) = varFit / ( varFit + varRes );
+    }
+  }
+	return R2;
+}
+
+std::vector<arma::vec> computeRSquaredFullDataNoY(
+    const arma::mat& data,
+    const std::vector<arma::uvec>& outcomesIdx,
+    const std::vector<arma::uvec>& fixedPredictorsIdx,
+    const std::vector<arma::uvec>& vsPredictorsIdx,
+    const std::vector<arma::mat>& beta,
+    const std::vector<arma::vec>& sigma) {
+  unsigned int nEquations = outcomesIdx.size();
+  std::vector<arma::vec> R2(nEquations);
+
+  for (unsigned int k = 0; k < nEquations; ++k) {
+    R2[k] = arma::vec(outcomesIdx[k].n_elem, arma::fill::none);
+
+    for (unsigned int j = 0 ; j < outcomesIdx[k].n_elem; ++j) {
+			arma::uvec predictors = arma::join_vert(fixedPredictorsIdx[k],vsPredictorsIdx[k]);
+      arma::vec thisXB = data.cols(predictors) * beta[k].col(j);
+
+      double varFit = arma::var(thisXB);
+      double varRes = sigma[k](j);
+      R2[k](j) = varFit / ( varFit + varRes );
+    }
+  }
+	return R2;
+}
+
 
 }  // end namespace Model
