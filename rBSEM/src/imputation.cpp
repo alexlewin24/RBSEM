@@ -55,8 +55,8 @@ Imputation::Imputation(arma::mat &data, const arma::uvec &completeCases,
     unsigned int count = 0;
 
     for (unsigned int i = 0; i < nObservations; ++i) {
-      if ((latentDataMatrix(i, j) ==
-           latentDataMatrix(i, j)))  // (not) definition of a non-NaN
+      if (latentDataMatrix(i, j) ==
+           latentDataMatrix(i, j))  // (not) definition of a non-NaN
       {
         if (varType(covariatesOnlyIdx(j)) !=
             0)  // so not a continuous var -- > i.e. a binary one!
