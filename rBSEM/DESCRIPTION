@@ -1,7 +1,7 @@
 Package: rBSEM
 Type: Package
 Title: Bayesian Structural Equation Model Regression
-Version: 0.2
+Version: 0.2.1
 Date: 2019-08-20
 Authors@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre"))
 Maintainer@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre"))
@@ -11,6 +11,6 @@ VignetteBuilder: knitr
 RoxygenNote: 6.1.1
 Depends: R (>= 3.2)
 LinkingTo: Rcpp, RcppArmadillo (>= 0.8.400), BH
-Imports: Rcpp, utils, RcppArmadillo (>= 0.8.400), BH
+Imports: Rcpp, utils, RcppArmadillo (>= 0.8.400), BH, igraph
 Suggests: testthat, knitr, rmarkdown
 LazyData: true
