@@ -483,11 +483,9 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		MCMCBetaFile[k].open( outFilePath+inFile+"_HESS_beta_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
 
 		// Bayesian R^2
+		rSquaredFullDataFile[k].open( outFilePath+inFile+"_HESS_R2_full_data_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
 		if ( hasMissingData ){
-			rSquaredCompleteCasesFile[k].open( outFilePath+inFile+"_HESS_R2_complete_cases_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc );
-			rSquaredFullDataFile[k].open( outFilePath+inFile+"_HESS_R2_full_imputed_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc ); 
-		}else{
-			rSquaredCompleteCasesFile[k].open( outFilePath+inFile+"_HESS_R2_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc );
+		rSquaredCompleteCasesFile[k].open( outFilePath+inFile+"_HESS_R2_complete_cases_"+std::to_string(k+1)+"_MCMC_out.txt" , std::ios_base::trunc );			
 		}
 		// no closing since we're appending to these
 	}
