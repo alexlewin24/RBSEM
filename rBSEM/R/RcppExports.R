@@ -11,9 +11,10 @@
 #' @param nChains number of parallel chains to run
 #' @param seed pRNG seed
 #' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method
+#' @param writeOutputLevel 1=no imputed values output to file, 2=imputed values are output to file (future implement 0 for only posterior means output)
 NULL
 
-rHESS_SEM_internal <- function(inFile, outFilePath, autoAddIntercept, gammaInit = "S", nIter = 10L, burnin = 0L, nChains = 1L, seed = 0L, method = 0L) {
-    .Call('_rBSEM_rHESS_SEM_internal', PACKAGE = 'rBSEM', inFile, outFilePath, autoAddIntercept, gammaInit, nIter, burnin, nChains, seed, method)
+rHESS_SEM_internal <- function(inFile, outFilePath, autoAddIntercept, gammaInit = "S", nIter = 10L, burnin = 0L, nChains = 1L, seed = 0L, method = 0L, writeOutputLevel = 1L) {
+    .Call('_rBSEM_rHESS_SEM_internal', PACKAGE = 'rBSEM', inFile, outFilePath, autoAddIntercept, gammaInit, nIter, burnin, nChains, seed, method, writeOutputLevel)
 }
 

@@ -29,6 +29,6 @@ extern std::vector<std::mt19937_64> rng;
 int run_HESS(std::string inFile, std::string outFilePath, 
              bool autoAddIntercept, std::string gammaInit,
              unsigned int nIter, unsigned int burning, unsigned int nChains,
-             unsigned long long seed, int method);
+             unsigned long long seed, int method, int writeOutputLevel);
 
 #endif

@@ -4,9 +4,21 @@
 \alias{rHESS_SEM}
 \title{rHESS_SEM}
 \usage{
-rHESS_SEM(inFile, blockList, varType = NULL, SEMGraph,
-  outFilePath = "", autoAddIntercept = TRUE, gammaInit = "S", nIter,
-  burnin = 0, nChains = 1, seed = 0, method = 1)
+rHESS_SEM(
+  inFile,
+  blockList,
+  varType = NULL,
+  SEMGraph,
+  outFilePath = "",
+  autoAddIntercept = TRUE,
+  gammaInit = "S",
+  nIter,
+  burnin = 0,
+  nChains = 1,
+  seed = 0,
+  method = 1,
+  writeOutputLevel = 1
+)
 }
 \arguments{
 \item{inFile}{path to data file; plain text file with variables on the columns and observations on the rows}
@@ -32,6 +44,8 @@ rHESS_SEM(inFile, blockList, varType = NULL, SEMGraph,
 \item{seed}{pRNG seed}
 
 \item{method}{\deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^3}{MC^3} and 1=Thompson-sampling inspired novel method}
+
+\item{writeOutputLevel}{1=no imputed values output to file, 2=imputed values are output to file (future implement 0 for only posterior means output)}
 }
 \description{
 Run a simple SEM Bayesian sampler

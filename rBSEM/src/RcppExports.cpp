@@ -7,8 +7,8 @@
 using namespace Rcpp;
 
 // rHESS_SEM_internal
-int rHESS_SEM_internal(std::string inFile, std::string outFilePath, bool autoAddIntercept, std::string gammaInit, unsigned int nIter, unsigned int burnin, unsigned int nChains, unsigned long long seed, int method);
-RcppExport SEXP _rBSEM_rHESS_SEM_internal(SEXP inFileSEXP, SEXP outFilePathSEXP, SEXP autoAddInterceptSEXP, SEXP gammaInitSEXP, SEXP nIterSEXP, SEXP burninSEXP, SEXP nChainsSEXP, SEXP seedSEXP, SEXP methodSEXP) {
+int rHESS_SEM_internal(std::string inFile, std::string outFilePath, bool autoAddIntercept, std::string gammaInit, unsigned int nIter, unsigned int burnin, unsigned int nChains, unsigned long long seed, int method, int writeOutputLevel);
+RcppExport SEXP _rBSEM_rHESS_SEM_internal(SEXP inFileSEXP, SEXP outFilePathSEXP, SEXP autoAddInterceptSEXP, SEXP gammaInitSEXP, SEXP nIterSEXP, SEXP burninSEXP, SEXP nChainsSEXP, SEXP seedSEXP, SEXP methodSEXP, SEXP writeOutputLevelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -21,13 +21,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< unsigned int >::type nChains(nChainsSEXP);
     Rcpp::traits::input_parameter< unsigned long long >::type seed(seedSEXP);
     Rcpp::traits::input_parameter< int >::type method(methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, gammaInit, nIter, burnin, nChains, seed, method));
+    Rcpp::traits::input_parameter< int >::type writeOutputLevel(writeOutputLevelSEXP);
+    rcpp_result_gen = Rcpp::wrap(rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, gammaInit, nIter, burnin, nChains, seed, method, writeOutputLevel));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rBSEM_rHESS_SEM_internal", (DL_FUNC) &_rBSEM_rHESS_SEM_internal, 9},
+    {"_rBSEM_rHESS_SEM_internal", (DL_FUNC) &_rBSEM_rHESS_SEM_internal, 10},
     {NULL, NULL, 0}
 };
 

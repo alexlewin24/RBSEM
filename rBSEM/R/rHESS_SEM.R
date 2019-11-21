@@ -15,6 +15,7 @@
 #' @param gammaInit gamma initialisation to either all-zeros ("0"), all ones ("1"), randomly ("R") or (default) MLE-informed ("MLE").
 #' @param seed pRNG seed
 #' @param method \deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^3}{MC^3} and 1=Thompson-sampling inspired novel method
+#' @param writeOutputLevel 1=no imputed values output to file, 2=imputed values are output to file (future implement 0 for only posterior means output)
 #' @examples
 #' require(utils)
 #' dir.create("tmp")
@@ -35,7 +36,7 @@
 #' unlink("tmp", recursive=TRUE)
 #' 
 #' @export
-rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, gammaInit="S" ,nIter, burnin=0, nChains=1, seed=0, method=1)
+rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", autoAddIntercept=TRUE, gammaInit="S" ,nIter, burnin=0, nChains=1, seed=0, method=1, writeOutputLevel=1)
 {
   
   # cleanup file PATHS
@@ -140,7 +141,7 @@ rHESS_SEM = function(inFile, blockList, varType=NULL, SEMGraph, outFilePath="", 
   write.table(varType,"tmp/varType.txt", row.names = FALSE, col.names = FALSE)
   write.table(SEMGraph,"tmp/SEMGraph.txt", row.names = FALSE, col.names = FALSE)
   
-  status = rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, gammaInit, nIter, burnin, nChains, seed, method)
+  status = rHESS_SEM_internal(inFile, outFilePath, autoAddIntercept, gammaInit, nIter, burnin, nChains, seed, method, writeOutputLevel)
 
   if(outFilePath != "tmp/")
     unlink("tmp",recursive = TRUE)

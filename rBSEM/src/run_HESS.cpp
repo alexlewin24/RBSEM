@@ -3,7 +3,7 @@
 int run_HESS(std::string inFile, std::string outFilePath, 
 			bool autoAddIntercept, std::string gammaInit,
              unsigned int nIter, unsigned int burnin, unsigned int nChains,
-             unsigned long long seed, int method)
+             unsigned long long seed, int method, int writeOutputLevel)
 {
 
 	std::cout << "rBSEM -- Bayesian Structural Equation Modelling" << std::endl;
@@ -490,7 +490,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 		// no closing since we're appending to these
 	}
 	// Imputed data
-	if ( hasMissingData )
+	if ( hasMissingData && writeOutputLevel==2)
 		imputedDataFile.open( outFilePath+inFile+"_HESS_imputed_out.txt" , std::ios_base::trunc ); 
 	// log probabilities
 	logPFile.open( outFilePath+inFile+"_HESS_logP_out.txt" , std::ios_base::trunc ); 
@@ -743,10 +743,12 @@ int run_HESS(std::string inFile, std::string outFilePath,
 			}
 
 			if( hasMissingData ){
-				// output a batch of imputed data iterations
-				for( unsigned int row=0, nrows = imputedValues.n_rows; row < nrows; ++row)
-					imputedDataFile << imputedValues.row(row);
-				imputedDataFile << std::flush;
+				if( writeOutputLevel==2 ){
+					// output a batch of imputed data iterations
+					for( unsigned int row=0, nrows = imputedValues.n_rows; row < nrows; ++row)
+						imputedDataFile << imputedValues.row(row);
+					imputedDataFile << std::flush;
+				}
 
 				// if we have less iter to go than the batch size reset the batch 
 				if( (nIter - (iteration+ 1) ) < batch_size )
@@ -795,7 +797,7 @@ int run_HESS(std::string inFile, std::string outFilePath,
 
 	}
 
-	if( hasMissingData ){
+	if( hasMissingData && writeOutputLevel==2 ){
 		// output last batch of imputed data iterations
 		for( unsigned int row=0, nrows = imputedValues.n_rows; row < nrows; ++row)
 			imputedDataFile << imputedValues.row(row);

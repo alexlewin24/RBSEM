@@ -8,7 +8,7 @@ Maintainer@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", 
 Description: Bayesian Structural Equation Model Regression with general variable selection
 License: MIT + file LICENSE 
 VignetteBuilder: knitr
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.0
 Depends: R (>= 3.2)
 LinkingTo: Rcpp, RcppArmadillo (>= 0.8.400), BH
 Imports: Rcpp, utils, RcppArmadillo (>= 0.8.400), BH, igraph
