@@ -15,6 +15,8 @@
 \item{seed}{pRNG seed}
 
 \item{method}{\deqn{\gamma}{gamma} sampling method, where 0=\deqn{MC^2}{MC^3} and 1=Thompson -sampling-inspired novel method}
+
+\item{writeOutputLevel}{1=no imputed values output to file, 2=imputed values are output to file (future implement 0 for only posterior means output)}
 }
 \description{
 Run a simple SEM Bayesian sampler -- internal function

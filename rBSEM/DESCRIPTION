@@ -3,14 +3,14 @@ Type: Package
 Title: Bayesian Structural Equation Model Regression
 Version: 0.2.1
 Date: 2019-08-20
-Authors@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre"))
-Maintainer@R: person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre"))
+Authors@R: c(person("Marco", "Banterle", email = "marco.banterle@lshtm.ac.uk", role = c("aut", "cre")), person("Alex", "Lewin", email = "alex.lewin@lshtm.ac.uk", role = c("aut")) )
+Maintainer@R: person("Alex", "Lewin", email = "alex.lewin@lshtm.ac.uk", role = c("aut"))
 Description: Bayesian Structural Equation Model Regression with general variable selection
 License: MIT + file LICENSE 
 VignetteBuilder: knitr
-RoxygenNote: 7.0.0
+RoxygenNote: 7.0.2
 Depends: R (>= 3.2)
 LinkingTo: Rcpp, RcppArmadillo (>= 0.8.400), BH
-Imports: Rcpp, utils, RcppArmadillo (>= 0.8.400), BH, igraph
+Imports: Rcpp, utils, coda, RcppArmadillo (>= 0.8.400), BH, igraph
 Suggests: testthat, knitr, rmarkdown
 LazyData: true
