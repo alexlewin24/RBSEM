@@ -18,6 +18,7 @@
 #' @param outFilePath filepath for RBSEM output files
 #' @param outFilePrefix file prefix for RBSEM output files (this will be the name of the input data file, stripped of any .txt)
 #' @param varNames vector of variable names from original input data file
+#' @param probCI the probability to be contained with the credible intervals
 
 #' @examples 
 #' require(utils)
@@ -44,7 +45,7 @@
 #' @export
 
 getBayesRsquared <- function(blockGraph,blockList,outFilePath,outFilePrefix,varNames,
-                             hist=FALSE){
+                             probCI=0.95,hist=FALSE){
   
   # whole posterior of the Bayesian R2
       
@@ -52,7 +53,7 @@ getBayesRsquared <- function(blockGraph,blockList,outFilePath,outFilePrefix,varN
   
   filenumber <- 0
   for( iblock in 1:nblocks ){
-    print(paste("block no.",iblock))
+    #print(paste("block no.",iblock))
 
     # 1 or 2 in column of Graph means it is an endogenous variable (so read in R2)
     if( (1 %in% blockGraph[,iblock]) || (2 %in% blockGraph[,iblock]) ){
@@ -62,12 +63,13 @@ getBayesRsquared <- function(blockGraph,blockList,outFilePath,outFilePrefix,varN
       filenumber <- filenumber + 1
       fileR2 <- paste(outFilePath,outFilePrefix,"_HESS_R2_full_data_",
                          filenumber,"_MCMC_out.txt",sep="")
+      print("Reading from file:")
       print(fileR2)
 
       # get the dimension of the responses
       qq <- length(varNames[blockList[[iblock]]])
-      print("no. of responses in this block:")
-      print(qq)
+      #print("no. of responses in this block:")
+      #print(qq)
       
       # read in the whole posterior R2 file (as 2-dim array)
       R2All <- as.matrix(read.table(fileR2))
@@ -81,30 +83,27 @@ getBayesRsquared <- function(blockGraph,blockList,outFilePath,outFilePrefix,varN
       # posterior means and medians
       R2Means <- apply(R2All,FUN=mean,MARGIN=2)
       R2Medians <- apply(R2All,FUN=median,MARGIN=2)
-      print("posterior means:")
-      print(R2Means)
-      print("posterior medians:")
-      print(R2Medians)
+      #print("posterior means:")
+      #print(R2Means)
+      #print("posterior medians:")
+      #print(R2Medians)
       
       # plot histograms of R2
       if(hist) apply(R2All,FUN=hist,MARGIN=2)
      
+      # get credible intervals
+      R2CredInt <- apply(R2All,MARGIN=2,
+            FUN=function(e){ coda::HPDinterval(coda::as.mcmc(e),prob=probCI) })
+      #print(R2CredInt)
       
-      # # get credible intervals
-      # # test first
-      # #hist(betaPosteriors[1,,1])
-      # #testmcmc <- coda::as.mcmc(betaPosteriors[1,,1])
-      # #print(coda::HPDinterval(testmcmc, prob = 0.95))
-      # 
-      # betaCredInt <- apply(betaPosteriors,MARGIN=c(1,3),
-      #       FUN=function(e){ coda::HPDinterval(coda::as.mcmc(e),prob=probCI) })
-      # dimnames(betaCredInt)[[1]] <- c("lower","upper")
-      # #print(dim(betaCredInt))
-      # print(paste("posterior ",probCI," credible intervals"))
-      # print(betaCredInt)
+      R2CredInt <- t(R2CredInt)
+      R2ResultsTable <- cbind(R2Means,R2Medians,R2CredInt)
+      dimnames(R2ResultsTable)[[2]] <- c("mean","median","lower","upper")
+      print("Bayesian R-squared summaries for response variables:")
+      print(R2ResultsTable)
+      
     }
   }
-
 # end function
 }
 

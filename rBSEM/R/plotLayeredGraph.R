@@ -17,6 +17,9 @@
 #' is an arrow from i to j. This means that for a DAG the matrix should be upper 
 #' triangular.
 #' @param blockList list of variables in each block (as input to \code{\link{rHESS_SEM}})
+#' @param varNames vector of variable names from original input data file
+#' @param weighted parameter passed to igraph to tell whether graph edges are 
+#' weighted (TRUE) or not (FALSE or NULL). Default NULL.
 #' @param ... formatting parameters to be passed to igraph plot function 
 #' 
 #' @examples 
@@ -57,36 +60,41 @@
 #' @export
 #' @importFrom igraph graph.adjacency degree V delete.vertices plot.igraph
 
-plotLayeredGraph <- function(adjMatrix,blockList,...){
+plotLayeredGraph <- function(adjMatrix,blockList,varNames,weighted=NULL,...){
   
   # igraph function convert adjacency matrix to igraph object
-  graphAdj <- igraph::graph.adjacency(as.matrix(adjMatrix),diag=FALSE,mode="directed")
+  graphAdj <- igraph::graph.adjacency(as.matrix(adjMatrix),diag=FALSE,
+                                      mode="directed",weighted=weighted)
   
+  variable_layers <- getLayersfromBlockList(row.names(adjMatrix),blockList,varNames)
+  #print(variable_layers)
+  
+  #nblocks <- length(unique(variable_layers))
   nblocks <- length(blockList)
+  cat("nblocks =",nblocks,"\n")
   nvar <- dim(adjMatrix)[2]
   cat("nvar =",nvar,"\n")
-  
-  # need re-ordered block List as with other R functions
-  blockList <- relist(flesh=1:nvar,skeleton=blockList)
-  print("re-ordered block List:")
-  print(blockList)
 
-
-  # layers are the graph blocks
-  # get layout co-ords at the same time
-  layers <- rep(0,nvar)
+  # get layout co-ords 
   llcoords <- matrix(rep(0,2*nvar),ncol=2)
-  print(llcoords)
+  # x co-ord is number of layer
+  llcoords[,1] <- variable_layers
+    
+  #print(llcoords) 
+  # loop over blocks to get y co-ords
   for(i in 1:nblocks){
-    layers[blockList[[i]]] <- i-1
-    llcoords[blockList[[i]],1] <- i-1
-    len <- length(blockList[[i]])
-    #llcoords[blockList[[i]],2] <- 0:(len-1) - (len-1)/2
-    llcoords[blockList[[i]],2] <- ( 0:(len-1) - (len-1)/2 )*2/len
+    #llcoords[blockList[[i]],1] <- i-1
+    #len <- length(blockList[[i]])
+    memblock <- which(variable_layers==i)
+    #print(memblock)
+    len <- length(memblock)
+    llcoords[memblock,2] <- ( 0:(len-1) - (len-1)/2 )*2/len
+    #llcoords[blockList[[i]],2] <- ( 0:(len-1) - (len-1)/2 )*2/len
   }
-  print(llcoords)
-  print(layers)
-  igraph::V(graphAdj)$layer <- layers
+  #print(llcoords)
+
+  
+  igraph::V(graphAdj)$layer <- variable_layers
   
   #print(degree(graphAdj))
   #print(llcoords)
@@ -96,6 +104,20 @@ plotLayeredGraph <- function(adjMatrix,blockList,...){
   #print(layout)
   graphAdj <- igraph::delete.vertices(graphAdj,igraph::degree(graphAdj)==0) 
   
-  igraph::plot.igraph(graphAdj,layout=layout, rescale=TRUE, vertex.color="yellow",...)
-
+  if(is.null(weighted)){
+    igraph::plot.igraph(graphAdj,layout=layout, rescale=TRUE, 
+                        vertex.color="yellow",...)
+  }
+  else if(weighted==TRUE){
+    igraph::plot.igraph(graphAdj,layout=layout, rescale=TRUE, 
+                        edge.label=round(E(graphAdj)$weight,d=3),
+                        vertex.color="yellow",...)
+  } 
+  else{
+    igraph::plot.igraph(graphAdj,layout=layout, rescale=TRUE, 
+                        vertex.color="yellow",...)
+  }
+  
+  #### USE mark.groups FOR PLOTTING ELLIPSES AROUND GROUPS OF NODES
+  
 }

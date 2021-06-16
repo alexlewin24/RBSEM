@@ -66,13 +66,13 @@ getMeanBetas <- function(blockGraph,blockList,outFilePath,outFilePrefix,varNames
   # so adjgraph indices not out of bounds
   # variable names: just the ones we need, in order of blocks
   varNames <- varNames[unlist(blockList)]
-  print("variable names:")
-  print(varNames)
+  #print("variable names:")
+  #print(varNames)
   # block list: indices in order, just maintain correct block sizes
   ntot <- length(varNames)
   blockList <- relist(flesh=1:ntot,skeleton=blockList)
-  print("re-ordered block List:")
-  print(blockList)
+  #print("re-ordered block List:")
+  #print(blockList)
   
   nblocks <- dim(blockGraph)[2]
   
@@ -84,7 +84,7 @@ getMeanBetas <- function(blockGraph,blockList,outFilePath,outFilePrefix,varNames
   
   filenumber <- 0
   for( iblock in 1:nblocks ){
-    print(paste("block no.",iblock))
+    #print(paste("block no.",iblock))
     columnNames[blockList[[iblock]]] <- varNames[blockList[[iblock]]]
     
     # 1 or 2 in column of Graph means it is an endogenous variable (so read in betas)
@@ -109,17 +109,18 @@ getMeanBetas <- function(blockGraph,blockList,outFilePath,outFilePrefix,varNames
         dumindex <- NULL
       }
       for( jblock in which(blockGraph[,iblock]>0)  ){
-        print(jblock)
+        #print(jblock)
         dummy <- c(dummy,varNames[blockList[[jblock]]])
-        print(dummy)
+        #print(dummy)
         dumindex <- c(dumindex,blockList[[jblock]])
-        print(dumindex)
+        #print(dumindex)
       }
-      print(paste("expecting no. coefs = ",length(dummy)))
-      print(paste("no. coefs in output file = ",dim(beta.postmean)[1]))
+      print(paste("expecting no. covariates (predictors) = ",length(dummy)))
+      print(paste("no. covariates in output file = ",dim(beta.postmean)[1]))
       rownames(beta.postmean) <- dummy
       print("posterior mean regression coefficients, conditional on being selected:")
       print("columns are response variables, rows are covariates")
+      print("NaN means variable wasn't selected ever")
       print(beta.postmean)
       
       p <- dim(beta.postmean)[1]

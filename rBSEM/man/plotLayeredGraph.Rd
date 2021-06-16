@@ -4,7 +4,7 @@
 \alias{plotLayeredGraph}
 \title{Plot a Directed Acyclic Graph with variables as nodes.}
 \usage{
-plotLayeredGraph(adjMatrix, blockList, ...)
+plotLayeredGraph(adjMatrix, blockList, varNames, weighted = NULL, ...)
 }
 \arguments{
 \item{adjMatrix}{adjacency matrix for variables
@@ -13,6 +13,11 @@ is an arrow from i to j. This means that for a DAG the matrix should be upper
 triangular.}
 
 \item{blockList}{list of variables in each block (as input to \code{\link{rHESS_SEM}})}
+
+\item{varNames}{vector of variable names from original input data file}
+
+\item{weighted}{parameter passed to igraph to tell whether graph edges are 
+weighted (TRUE) or not (FALSE or NULL). Default NULL.}
 
 \item{...}{formatting parameters to be passed to igraph plot function}
 }
