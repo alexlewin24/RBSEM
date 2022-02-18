@@ -106,7 +106,7 @@ int main(int argc, char *  argv[])
     }//end reading from command line
 
 
-	int status= run_HESS(inFile, outFilePath, true, gammaInit, nIter, burnin, nChains, seed, method);
+	int status= run_HESS(inFile, outFilePath, true, gammaInit, nIter, burnin, nChains, seed, method, 1);
 
 	// Exit
 	return status;
